@@ -44,5 +44,5 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST') {
 
 Reply::send(Reply::text(
     'text/html',
-    AdminForm::page(Palette::settings($settings->read()), 'index.php?entryPoint=customThemeAdmin', $saved)
+    AdminForm::page(Palette::settings($settings->read()), 'index.php?entryPoint=customThemeAdmin', $saved),
 ));
