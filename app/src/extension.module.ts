@@ -73,6 +73,27 @@ nav.navbar {
 }
 nav.navbar:hover { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
 
+/* Pinned open: the rail keeps its full width and the content stands beside
+   it rather than under it, so nothing is hidden. */
+html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-shadow: none; }
+html[${MARK}-pinned] app-root { padding-left: var(--ct-rail-open); }
+html[${MARK}-pinned] nav.navbar [${MARK}-label] { opacity: 1; }
+
+[${MARK}-pin] {
+  flex: 0 0 auto; height: var(--ct-rail); width: 100%;
+  display: flex; align-items: center; gap: 12px; padding: 0 13px;
+  border: 0; background: none; cursor: pointer; color: #64748b;
+  border-bottom: 1px solid rgba(15, 23, 42, .06);
+}
+[${MARK}-pin]:hover { background: rgba(15, 23, 42, .04); }
+[${MARK}-pin] span:first-child {
+  flex: 0 0 30px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; line-height: 1;
+}
+[${MARK}-pin] span:last-child { font-size: 13px; opacity: 0; white-space: nowrap; transition: opacity .12s ease; }
+nav.navbar:hover [${MARK}-pin] span:last-child,
+html[${MARK}-pinned] [${MARK}-pin] span:last-child { opacity: 1; }
+
 nav.navbar .navbar-collapse { display: block !important; width: 100% !important; flex-basis: auto !important; }
 nav.navbar ul.navbar-nav { flex-direction: column !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
 nav.navbar li.top-nav, nav.navbar li.nav-item { width: 100% !important; position: relative !important; }
@@ -138,6 +159,61 @@ const iconFor = (module: string): Promise<string | null> => {
 };
 
 /**
+ * Whether the rail is pinned open. Kept per browser, because it is a habit of
+ * the person sitting there, not a setting of the instance.
+ */
+const PIN_KEY = 'custom-theme.pinned';
+
+const readPin = (): boolean => {
+    try {
+        return window.localStorage.getItem(PIN_KEY) === 'yes';
+    } catch {
+        return false;
+    }
+};
+
+const writePin = (pinned: boolean): void => {
+    try {
+        window.localStorage.setItem(PIN_KEY, pinned ? 'yes' : 'no');
+    } catch {
+        // A browser that refuses storage still gets a working rail, it just
+        // forgets the choice between visits.
+    }
+};
+
+const applyPin = (pinned: boolean): void => {
+    if (pinned) {
+        document.documentElement.setAttribute(`${MARK}-pinned`, '');
+    } else {
+        document.documentElement.removeAttribute(`${MARK}-pinned`);
+    }
+};
+
+/** The button at the top of the rail that holds it open. */
+const pinButton = (): HTMLElement => {
+    const button = document.createElement('button');
+    button.setAttribute(`${MARK}-pin`, '');
+    button.type = 'button';
+    button.title = 'Garder le menu ouvert';
+
+    const glyph = document.createElement('span');
+    glyph.textContent = '\u00AB';
+    const label = document.createElement('span');
+    label.textContent = 'Garder ouvert';
+    button.append(glyph, label);
+
+    button.addEventListener('click', () => {
+        const pinned = !document.documentElement.hasAttribute(`${MARK}-pinned`);
+        applyPin(pinned);
+        writePin(pinned);
+        glyph.textContent = pinned ? '\u00BB' : '\u00AB';
+        label.textContent = pinned ? 'Replier' : 'Garder ouvert';
+    });
+
+    return button;
+};
+
+/**
  * The module a menu entry points at, spelled as SuiteCRM spells it. Read from
  * the links of its submenu, which carry return_module=Accounts: the entry's
  * own address only gives the lowercase route.
@@ -196,6 +272,7 @@ export class ExtensionModule {
             document.documentElement.style.setProperty(name, value);
         }
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
+        applyPin(readPin());
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
@@ -211,6 +288,17 @@ export class ExtensionModule {
         // The modules sit in li.top-nav, Home in the separate component next
         // to them. The link to dress is the one at the top of the entry, not
         // those of the submenu underneath.
+        const bar = document.querySelector('nav.navbar');
+        if (bar && !bar.querySelector(`[${MARK}-pin]`)) {
+            const button = pinButton();
+            if (document.documentElement.hasAttribute(`${MARK}-pinned`)) {
+                const spans = button.querySelectorAll('span');
+                spans[0].textContent = '\u00BB';
+                spans[1].textContent = 'Replier';
+            }
+            bar.prepend(button);
+        }
+
         const entries = document.querySelectorAll(
             'nav.navbar li.top-nav a.top-nav-link, nav.navbar a.home-nav-link'
         );
