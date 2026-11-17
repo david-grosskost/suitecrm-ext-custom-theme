@@ -13,3 +13,4 @@ parameters:
     scanFiles:
         - vendor/david-grosskost/suitecrm-devkit/config/suitecrm.stub
         - tests/stubs/symfony.stub
+        - tests/stubs/suitecrm-functions.stub

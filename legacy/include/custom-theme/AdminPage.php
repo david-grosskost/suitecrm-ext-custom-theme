@@ -37,7 +37,9 @@ if (!is_admin($current_user)) {
 $settings = ConfigTable::forSuiteCrm();
 $saved = false;
 
-if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST') {
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+if (is_string($method) && strtoupper($method) === 'POST') {
     $settings->replace(AdminForm::fromPost($_POST));
     $saved = true;
 }

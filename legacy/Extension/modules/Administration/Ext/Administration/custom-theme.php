@@ -7,12 +7,15 @@
 // starts empty here: otherwise this group would also show the entries of the
 // extensions declared before it.
 
-$admin_option_defs = [];
-$admin_option_defs['Administration']['custom_theme_colours'] = [
-    'Administration',
-    'LBL_CUSTOM_THEME_COLOURS',
-    'LBL_CUSTOM_THEME_COLOURS_DESC',
-    'index.php?entryPoint=customThemeAdmin',
+$admin_option_defs = [
+    'Administration' => [
+        'custom_theme_colours' => [
+            'Administration',
+            'LBL_CUSTOM_THEME_COLOURS',
+            'LBL_CUSTOM_THEME_COLOURS_DESC',
+            'index.php?entryPoint=customThemeAdmin',
+        ],
+    ],
 ];
 
 /** @var array<int, array<int, mixed>> $admin_group_header Set by SuiteCRM */

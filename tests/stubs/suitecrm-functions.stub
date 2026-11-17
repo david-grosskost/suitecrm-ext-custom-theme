@@ -1,0 +1,13 @@
+<?php
+
+// Signatures of the SuiteCRM global functions this extension calls, for
+// PHPStan only (SuiteCRM exists only inside the image). The shared stub of
+// suitecrm-devkit holds the classes but no function yet: move this one there
+// the day a second extension needs it.
+
+/**
+ * Whether the user is an administrator of the instance.
+ */
+function is_admin(mixed $user): bool
+{
+}
