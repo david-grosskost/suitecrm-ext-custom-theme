@@ -55,6 +55,7 @@ final class ThemeTest extends TestCase
         $decoded = json_decode(Theme::json(['primary' => '#0a0b0c']), true, 512, JSON_THROW_ON_ERROR);
 
         self::assertIsArray($decoded);
+        self::assertIsArray($decoded['variables']);
         self::assertSame('#0a0b0c', $decoded['variables']['--primary']);
     }
 }
