@@ -27,8 +27,11 @@ final class ThemeTest extends TestCase
         $payload = Theme::payload(['primary' => '#123456']);
 
         self::assertSame(['variables', 'accents', 'rail'], array_keys($payload));
-        self::assertSame(Theme::STANDARD_MODULES, array_keys($payload['accents']),
-            'seuls les modules standard : cette entrée est ouverte sans connexion');
+        self::assertSame(
+            Theme::STANDARD_MODULES,
+            array_keys($payload['accents']),
+            'seuls les modules standard : cette entrée est ouverte sans connexion',
+        );
     }
 
     public function testCarriesTheChosenColours(): void
