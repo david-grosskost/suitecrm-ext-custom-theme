@@ -96,13 +96,18 @@ nav.navbar [${MARK}-letter] {
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; color: #fff;
 }
-nav.navbar [${MARK}-label] { opacity: 0; transition: opacity .12s ease; }
+nav.navbar [${MARK}-item], nav.navbar [${MARK}-item]:hover {
+  color: #334155 !important; text-decoration: none !important;
+}
+nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .04); }
+nav.navbar [${MARK}-label] { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
 nav.navbar:hover [${MARK}-label] { opacity: 1; }
 
 /* The submenu of a module opens to the right of the rail, not under it. */
 nav.navbar .dropdown-menu.submenu {
   position: absolute !important; left: 100% !important; top: 0 !important;
-  margin: 0 !important;
+  margin: 0 !important; border: 1px solid rgba(15, 23, 42, .1); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
 }
 
 /* What the rail has no room for. */
