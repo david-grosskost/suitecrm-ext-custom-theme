@@ -48,8 +48,8 @@ final class Theme
     public static function payload(array $stored): array
     {
         $accents = [];
-        foreach (self::STANDARD_MODULES as $module) {
-            $accents[$module] = Palette::accentFor($module);
+        foreach (self::STANDARD_MODULES as $position => $module) {
+            $accents[$module] = Palette::accentAt($position);
         }
 
         return [

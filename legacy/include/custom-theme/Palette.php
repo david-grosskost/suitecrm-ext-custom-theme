@@ -69,15 +69,27 @@ final class Palette
     }
 
     /**
-     * L'accent d'un module, toujours le même pour un nom donné, sur toutes
-     * les instances. Un module ajouté plus tard prend sa couleur sans que
-     * celle des autres bouge.
+     * L'accent du module de rang donné. Les modules connus sont servis dans
+     * l'ordre, ce qui garantit que les premiers — ceux qu'on voit tous les
+     * jours — ont tous une couleur différente. Tirer au sort depuis le nom
+     * donnait quatre couleurs pour huit modules courants : des collisions
+     * qui ruinent l'intérêt de colorer.
      */
-    public static function accentFor(string $module): string
+    public static function accentAt(int $position): string
     {
         $accents = self::ACCENTS;
 
-        return $accents[crc32(strtolower($module)) % count($accents)];
+        return $accents[abs($position) % count($accents)];
+    }
+
+    /**
+     * L'accent d'un module qu'on ne connaît pas — un module créé dans Studio,
+     * absent de la liste. Déduit de son nom, donc toujours le même pour un nom
+     * donné, sur toutes les instances et d'une version à l'autre.
+     */
+    public static function accentFor(string $module): string
+    {
+        return self::accentAt((int) crc32(strtolower($module)));
     }
 
     /**

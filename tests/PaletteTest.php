@@ -46,12 +46,19 @@ final class PaletteTest extends TestCase
         }
     }
 
-    public function testSpreadsTheAccentsAcrossTheUsualModules(): void
+    public function testGivesEveryRankItsOwnAccentUntilTheListRunsOut(): void
     {
-        $modules = ['Accounts', 'Contacts', 'Opportunities', 'Leads', 'Calendar', 'Cases', 'Documents', 'Tasks'];
-        $used = array_unique(array_map(Palette::accentFor(...), $modules));
+        $count = count(Palette::ACCENTS);
+        $used = array_map(Palette::accentAt(...), range(0, $count - 1));
 
-        self::assertGreaterThanOrEqual(5, count($used), 'huit modules ne doivent pas se retrouver sur deux couleurs');
+        self::assertSame(Palette::ACCENTS, $used, 'les premiers modules ont tous une couleur différente');
+        self::assertSame(Palette::accentAt(0), Palette::accentAt($count), 'au-delà, la liste recommence');
+    }
+
+    public function testTakesANegativeRank(): void
+    {
+        // crc32 dépasse l'entier signé sur certaines plateformes.
+        self::assertContains(Palette::accentAt(-7), Palette::ACCENTS);
     }
 
     public function testBuildsTheVariablesSuiteCrmReads(): void

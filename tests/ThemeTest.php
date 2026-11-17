@@ -22,6 +22,18 @@ final class ThemeTest extends TestCase
         }
     }
 
+    public function testGivesTheModulesSeenEveryDayDistinctAccents(): void
+    {
+        $accents = Theme::payload([])['accents'];
+        $firstFew = array_slice($accents, 0, count(Palette::ACCENTS));
+
+        self::assertSame(
+            count($firstFew),
+            count(array_unique($firstFew)),
+            'deux modules côte à côte dans le rail ne doivent pas partager leur couleur',
+        );
+    }
+
     public function testSaysNothingOfTheInstance(): void
     {
         $payload = Theme::payload(['primary' => '#123456']);
