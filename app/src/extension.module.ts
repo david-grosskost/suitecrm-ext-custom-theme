@@ -59,29 +59,35 @@ const styleSheet = (): HTMLStyleElement => {
 const layout = (rail: Rail): string => `
 :root { --ct-rail: ${rail.width}px; --ct-rail-open: ${rail.open}px; }
 
+/* The bar leaves the flow and stands against the left edge. !important all
+   the way: SuiteCRM's own rules are more specific than ours. */
 nav.navbar {
-  position: fixed; top: 0; left: 0; bottom: 0;
-  width: var(--ct-rail); height: 100vh;
-  flex-direction: column; align-items: stretch; justify-content: flex-start;
-  flex-wrap: nowrap; padding: 0; gap: 0;
-  background: var(--st-rail, #fff);
+  position: fixed !important; top: 0 !important; left: 0 !important; bottom: 0 !important;
+  width: var(--ct-rail) !important; height: 100vh !important;
+  flex-direction: column !important; align-items: stretch !important;
+  justify-content: flex-start !important; flex-wrap: nowrap !important;
+  padding: 0 !important; overflow: visible !important;
+  background: var(--st-rail, #fff) !important;
   border-right: 1px solid rgba(15, 23, 42, .08);
-  z-index: 1040; overflow: visible;
-  transition: width .15s ease;
+  z-index: 1040; transition: width .15s ease;
 }
-nav.navbar:hover { width: var(--ct-rail-open); box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
+nav.navbar:hover { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
 
-nav.navbar scrm-menu-items-list ul {
-  flex-direction: column; align-items: stretch; width: 100%; margin: 0; padding: 0;
-}
-nav.navbar scrm-menu-items-list ul > li { width: 100%; }
-nav.navbar scrm-menu-items-list ul > li > * { width: 100%; }
+nav.navbar .navbar-collapse { display: block !important; width: 100% !important; flex-basis: auto !important; }
+nav.navbar ul.navbar-nav { flex-direction: column !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+nav.navbar li.top-nav, nav.navbar li.nav-item { width: 100% !important; position: relative !important; }
+nav.navbar .menu-item-wrapper { width: 100% !important; }
 
-/* One row: the tinted icon, then the label, hidden while the rail is closed. */
+/* One row per module: the tinted icon, then the label, which only shows
+   once the rail is open. */
 nav.navbar [${MARK}-item] {
-  display: flex; align-items: center; gap: 12px;
-  height: var(--ct-rail); padding: 0 ${(56 - 30) / 2}px;
-  white-space: nowrap; overflow: hidden;
+  display: flex !important; align-items: center; gap: 12px;
+  height: var(--ct-rail); padding: 0 13px;
+  white-space: nowrap; overflow: hidden; position: relative;
+}
+nav.navbar [${MARK}-item]::before {
+  content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%;
+  background: var(--ct-accent, transparent);
 }
 nav.navbar [${MARK}-icon] { flex: 0 0 30px; width: 30px; height: 30px; display: block; }
 nav.navbar [${MARK}-icon] svg { width: 30px; height: 30px; display: block; }
@@ -93,21 +99,19 @@ nav.navbar [${MARK}-letter] {
 nav.navbar [${MARK}-label] { opacity: 0; transition: opacity .12s ease; }
 nav.navbar:hover [${MARK}-label] { opacity: 1; }
 
-/* The accent, as on the reference: a strip on the edge of every row, filled
-   in when the module is the one being looked at. */
-nav.navbar [${MARK}-item]::before {
-  content: ''; position: absolute; left: 0; width: 3px; height: var(--ct-rail);
-  background: var(--ct-accent, transparent);
+/* The submenu of a module opens to the right of the rail, not under it. */
+nav.navbar .dropdown-menu.submenu {
+  position: absolute !important; left: 100% !important; top: 0 !important;
+  margin: 0 !important;
 }
-nav.navbar [${MARK}-item] { position: relative; }
 
-/* What the rail has no room for. The search keeps its own place in the
-   screens of SuiteCRM. */
-nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none; }
+/* What the rail has no room for. */
+nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none !important; }
 
-/* The content, moved aside by the closed width: the rail opens over it, so
-   nothing reflows when it does. */
-body > app-root > *:not(scrm-navbar-ui) { margin-left: var(--ct-rail); }
+/* The content moves aside by the closed width: the rail opens over it, so
+   nothing reflows when it does. Padding on app-root rather than a margin on
+   each child, because SuiteCRM adds children as it goes. */
+app-root { display: block; padding-left: var(--ct-rail); }
 body { background: var(--st-surface, #f1f5f9); }
 `;
 
@@ -128,16 +132,27 @@ const iconFor = (module: string): Promise<string | null> => {
     return asked;
 };
 
-/** The module a menu entry points at, as SuiteCRM's own list spells it. */
-const moduleOf = (item: Element, accents: Record<string, string>): string | null => {
-    const link = item.querySelector('a[href]') as HTMLAnchorElement | null;
-    const href = link?.getAttribute('href') ?? '';
-    const asked = href.split(/[#/?]/).filter(Boolean).pop() ?? '';
-    if (!asked) {
-        return null;
+/**
+ * The module a menu entry points at, spelled as SuiteCRM spells it. Read from
+ * the links of its submenu, which carry return_module=Accounts: the entry's
+ * own address only gives the lowercase route.
+ */
+const moduleOf = (link: Element, accents: Record<string, string>): string | null => {
+    const entry = link.closest('li.top-nav, li.nav-item') ?? link.parentElement;
+    const hrefs = entry ? Array.from(entry.querySelectorAll('a[href]')).map(a => a.getAttribute('href') ?? '') : [];
+    for (const href of hrefs) {
+        const named = /return_module=([A-Za-z0-9_]+)/.exec(href);
+        if (named) {
+            const match = Object.keys(accents).find(name => name.toLowerCase() === named[1].toLowerCase());
+            if (match) {
+                return match;
+            }
+        }
     }
 
-    return Object.keys(accents).find(name => name.toLowerCase() === asked.toLowerCase()) ?? null;
+    const own = (link.getAttribute('href') ?? '').split(/[#/?]/).filter(Boolean).pop() ?? '';
+
+    return own ? Object.keys(accents).find(name => name.toLowerCase() === own.toLowerCase()) ?? null : null;
 };
 
 /** A tile with the first letter, for a module SuiteCRM ships no icon for. */
@@ -188,10 +203,14 @@ export class ExtensionModule {
     }
 
     private async decorate(accents: Record<string, string>): Promise<void> {
-        const items = document.querySelectorAll('nav.navbar scrm-menu-items-list li');
-        for (const item of Array.from(items)) {
-            const link = item.querySelector('a') as HTMLElement | null;
-            if (!link || link.hasAttribute(`${MARK}-item`)) {
+        // The modules sit in li.top-nav, Home in the separate component next
+        // to them. The link to dress is the one at the top of the entry, not
+        // those of the submenu underneath.
+        const entries = document.querySelectorAll(
+            'nav.navbar li.top-nav a.top-nav-link, nav.navbar a.home-nav-link'
+        );
+        for (const link of Array.from(entries) as HTMLElement[]) {
+            if (link.hasAttribute(`${MARK}-item`)) {
                 continue;
             }
             const label = (link.textContent ?? '').trim();
@@ -199,7 +218,7 @@ export class ExtensionModule {
                 continue;
             }
 
-            const module = moduleOf(item, accents);
+            const module = moduleOf(link, accents);
             const accent = module ? accents[module] : '#94a3b8';
             link.setAttribute(`${MARK}-item`, '');
             link.style.setProperty('--ct-accent', accent);
