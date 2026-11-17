@@ -1,56 +1,74 @@
-# Modèle d'extension SuiteCRM
+# Thème vertical
 
-Point de départ de toute extension des projets SuiteCRM : on ne modifie jamais le code de
-SuiteCRM, on lui ajoute des extensions. Ce dépôt contient une extension d'exemple
-(`exemple`) qui passe toutes les vérifications : on la remplace par la sienne.
+Extension SuiteCRM 8 : le menu horizontal devient un rail vertical d'icônes à gauche, et
+l'interface prend les couleurs de l'entreprise.
 
-## Créer une extension
+**Les écrans de SuiteCRM ne sont pas modifiés.** L'extension ne touche qu'au cadre —
+l'en-tête, le menu, et le fond sur lequel les écrans s'affichent. Listes, fiches, Studio,
+administration : tout reste ce que SuiteCRM propose, avec ses comportements et ses
+raccourcis.
 
-1. Sur GitHub, **Use this template → Create a new repository**, nommé
-   `suitecrm-ext-<slug>` (ex. `suitecrm-ext-siret-validation`).
-2. Le cloner, puis lancer `make` : le devkit s'installe (Docker suffit, pas besoin de PHP).
-3. Remplacer l'exemple :
-   - `extension.json` : `slug`, nom, description en mots métier, types ;
-   - `composer.json` : `name` en `…/suitecrm-ext-<slug>`, description ;
-   - `legacy/include/exemple/`, `tests/ExempleTest.php` : son code et ses tests.
-4. Vérifier, comme le fera la CI :
+## Ce qu'elle fait
+
+**Le rail.** La barre de menu quitte le haut de la page et se fixe contre le bord gauche,
+sur 56 px. Chaque module y est une icône ; au survol, le rail s'ouvre à 240 px et les
+libellés apparaissent, par-dessus le contenu — rien ne se redispose, donc rien ne saute
+sous la souris.
+
+**Les icônes.** Celles de SuiteCRM, déjà livrées avec lui
+(`themes/suite8/images/<Module>.svg`), teintées de la couleur du module. Rien n'est
+dessiné pour l'occasion : un module ajouté par une autre extension apporte la sienne.
+Un module sans icône — typiquement un module créé dans Studio — reçoit une pastille
+portant son initiale.
+
+**Les couleurs.** Une par module, pour l'identifier d'un coup d'œil : filet sur le bord de
+l'entrée et teinte de l'icône. Elles sont déduites du nom du module, donc stables d'une
+instance à l'autre et d'une version à l'autre. Le reste de l'interface suit les couleurs
+de l'entreprise, posées en variables CSS — c'est tout ce dont SuiteCRM 8 a besoin pour se
+reteinter.
+
+## Ce qu'elle ne fait pas encore
+
+- **La page d'administration** pour choisir les couleurs. Elles sont lues dans la table
+  `config` (catégorie `custom_theme`), mais rien ne les y écrit encore : l'extension
+  utilise ses valeurs par défaut.
+- **Le rail ne s'épingle pas** : il s'ouvre au survol et se referme. Un bouton pour le
+  garder ouvert viendra.
+
+## Fonctionnement
+
+- Un **module Angular**, chargé par SuiteCRM 8 au démarrage sans recompiler son front,
+  pose les variables CSS, installe la feuille de style du rail, puis décore chaque entrée
+  de menu de son icône teintée.
+- Un **point d'entrée** de SuiteCRM, `legacy/index.php?entryPoint=customTheme`, sert les
+  couleurs. Il est **ouvert sans connexion**, pour que l'écran de connexion soit déjà aux
+  bonnes couleurs — il ne sert donc que les couleurs choisies et les accents des modules
+  **standard** de SuiteCRM. Rien de cette instance, rien des données : un module maison
+  ne doit pas voir son nom exposé avant connexion.
+- Le rail est écrit contre les **composants nommés** de SuiteCRM (`scrm-navbar-ui`,
+  `scrm-menu-items-list`, `scrm-menu-item`), pas contre des classes générées : c'est ce qui
+  lui donne une chance de survivre aux montées de version.
+- Le menu est redessiné par Angular à chaque changement, donc la décoration est réappliquée
+  par un observateur du DOM plutôt qu'une seule fois au chargement.
+
+## La question de la maintenance
+
+Reteinter est sûr : des variables CSS, c'est un contrat. **Déplacer le menu ne l'est pas** :
+on réarrange une mise en page qu'on ne possède pas. À chaque montée de version de SuiteCRM,
+il faut vérifier que le rail tient toujours — c'est le prix de ce thème, et il est assumé.
+
+## Pour les développeurs
+
+| Fichier | Rôle |
+|---|---|
+| `legacy/include/custom-theme/Palette.php` | les couleurs : celles choisies, celles déduites |
+| `legacy/include/custom-theme/Theme.php` | ce que l'interface reçoit (variables, accents, rail) |
+| `legacy/include/custom-theme/ConfigTable.php`, `Settings.php` | les couleurs en base (table `config`) |
+| `legacy/include/custom-theme/ServeTheme.php`, `Reply.php` | le point d'entrée |
+| `legacy/Extension/…` | déclaration du point d'entrée |
+| `config/extension.php` | déclaration du module Angular à SuiteCRM 8 |
+| `app/` → `public/` | le module Angular et sa version construite (`make front@build`) |
 
 ```bash
-make extension@validate   # format : manifeste, composer.json, place des fichiers
-make quality@lint         # style du code, scripts
-make quality@stan         # analyse statique (PHPStan, niveau max)
-make test@unit            # tests unitaires (PHPUnit)
+make extension@validate && make quality@lint && make quality@stan && make test@unit && make front@check
 ```
-
-5. Pousser une branche et ouvrir une pull request : un développeur la relit avant le merge.
-
-## Où mettre quoi
-
-| Dossier | Copié dans SuiteCRM | Pour |
-|---|---|---|
-| `legacy/Extension/…` | `public/legacy/custom/Extension/…` | hooks, champs, libellés : SuiteCRM les assemble au Quick Repair. Le slug figure dans chaque nom de fichier (ex. `legacy/Extension/application/Ext/LogicHooks/<slug>.php`) |
-| `legacy/include/<slug>/` | `public/legacy/custom/include/<slug>/` | les classes PHP appelées par les hooks : la logique, testée sans SuiteCRM |
-| `backend/`, `config/` | `extensions/<slug>/` | la couche SuiteCRM 8 (services Symfony), chargée automatiquement |
-| `database/seeders/` | — | ses données de démo, chargées par le seed des démos |
-| `tests/` | — | ses tests unitaires |
-
-`make extension@validate` refuse un fichier rangé ailleurs : deux extensions ne peuvent
-ainsi jamais écrire le même fichier.
-
-## Le manifeste `extension.json`
-
-| Clé | Contenu |
-|---|---|
-| `slug` | identifiant, en minuscules et tirets : le préfixe de tous ses fichiers |
-| `name` | nom, en français |
-| `description` | ce que fait l'extension, en mots métier (20 caractères au moins) |
-| `types` | parmi `logic-hook`, `fields`, `ui`, `scheduler`, `lang` |
-| `suitecrm` | versions de SuiteCRM compatibles, ex. `>=8.10 <9` |
-
-## Ce qui vient du devkit
-
-Les commandes `make`, la CI, les hooks Git, les règles de qualité et la signature des
-classes SuiteCRM pour PHPStan viennent de
-[suitecrm-devkit](https://github.com/david-grosskost/suitecrm-devkit), à la version de
-`composer.json`. Corriger une règle se fait dans le devkit, puis on monte sa version ici
-(`composer.json` et `.github/workflows/*.yml`, ensemble).
