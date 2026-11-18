@@ -56,13 +56,13 @@ const styleSheet = (): HTMLStyleElement => {
  * class names, which are not.
  */
 const layout = (rail: Rail): string => `
-:root { --ct-rail: ${rail.width}px; --ct-rail-open: ${rail.open}px; }
+:root { --ct-rail: ${rail.width}px; --ct-rail-open: ${rail.open}px; --ct-bar: ${rail.width}px; }
 
 /* The bar leaves the flow and stands against the left edge. !important all
    the way: SuiteCRM's own rules are more specific than ours. */
 nav.navbar {
-  position: fixed !important; top: 0 !important; left: 0 !important; bottom: 0 !important;
-  width: var(--ct-rail) !important; height: 100vh !important;
+  position: fixed !important; top: var(--ct-bar) !important; left: 0 !important; bottom: 0 !important;
+  width: var(--ct-rail) !important; height: calc(100vh - var(--ct-bar)) !important;
   flex-direction: column !important; align-items: stretch !important;
   justify-content: flex-start !important; flex-wrap: nowrap !important;
   padding: 0 !important; overflow: visible !important;
@@ -179,12 +179,36 @@ nav.navbar .dropdown-menu.submenu[${MARK}-open] { display: block !important; }
 nav.navbar scrm-menu-items-list { display: none !important; }
 
 /* What the rail has no room for. */
-nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none !important; }
+/* The bar across the top carries what is not a module and what the rail is
+   too narrow for: the search, the quick actions, the user's menu. */
+[${MARK}-bar] {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--ct-bar);
+  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  background: linear-gradient(to right top, var(--st-header-from, #0369a0), var(--st-header-to, #3abff8));
+  color: #fff; z-index: 1050;
+}
+[${MARK}-bar] [${MARK}-gap] { flex: 1 1 auto; }
+
+/* The controls keep their behaviour; only their colours change, so they can
+   be read on the gradient. */
+[${MARK}-bar] a, [${MARK}-bar] button, [${MARK}-bar] .action-link { color: #fff !important; }
+[${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
+[${MARK}-bar] .dropdown-menu, [${MARK}-bar] .dropdown-menu a { color: #1d283a !important; }
+[${MARK}-bar] .dropdown-menu svg, [${MARK}-bar] .dropdown-menu svg * { fill: #64748b; }
+[${MARK}-bar] scrm-search-bar { display: block !important; }
+[${MARK}-bar] .search-bar-term {
+  background: rgba(255, 255, 255, .16); border: 0; border-radius: 8px;
+  color: #fff; min-width: 240px;
+}
+[${MARK}-bar] .search-bar-term::placeholder { color: rgba(255, 255, 255, .75); }
+
+/* The rail has no room for these: they live in the bar now. */
+nav.navbar .navbar-toggler, nav.navbar .search-mobile-view { display: none !important; }
 
 /* The content moves aside by the closed width: the rail opens over it, so
    nothing reflows when it does. Padding on app-root rather than a margin on
    each child, because SuiteCRM adds children as it goes. */
-app-root { display: block; padding-left: var(--ct-rail); }
+app-root { display: block; padding-left: var(--ct-rail); padding-top: var(--ct-bar); }
 body { background: var(--st-surface, #f1f5f9); }
 `;
 
@@ -203,6 +227,59 @@ const iconFor = (module: string): Promise<string | null> => {
     icons.set(module, asked);
 
     return asked;
+};
+
+/**
+ * What the bar across the top carries, in the order it shows them. These are
+ * SuiteCRM's own elements: they are moved, never copied, so they keep their
+ * behaviour and their bindings.
+ */
+const BAR_PARTS = [
+    'scrm-search-bar',
+    `[${MARK}-gap]`,
+    'div.action-group.navbar-action-group',
+    'div.global-links',
+];
+
+/** The bar across the top, created once. */
+const topBar = (): HTMLElement => {
+    const known = document.querySelector<HTMLElement>(`[${MARK}-bar]`);
+    if (known) {
+        return known;
+    }
+
+    const bar = document.createElement('header');
+    bar.setAttribute(`${MARK}-bar`, '');
+    const gap = document.createElement('span');
+    gap.setAttribute(`${MARK}-gap`, '');
+    bar.append(gap);
+    document.body.prepend(bar);
+
+    return bar;
+};
+
+/**
+ * Puts the controls that are not modules into the bar. Angular redraws the
+ * navbar as the menu changes, so a moved control can come back where it was:
+ * when any of them has strayed, all are set down again, in order.
+ */
+const fillBar = (): void => {
+    const bar = topBar();
+    const strayed = BAR_PARTS.some(selector => {
+        const part = document.querySelector(selector);
+
+        return part !== null && part.parentElement !== bar;
+    });
+    if (!strayed) {
+        return;
+    }
+
+    for (const selector of BAR_PARTS) {
+        const part = document.querySelector(selector);
+        if (part) {
+            bar.append(part);
+        }
+    }
 };
 
 /**
@@ -462,6 +539,8 @@ export class ExtensionModule {
         // The modules sit in li.top-nav, Home in the separate component next
         // to them. The link to dress is the one at the top of the entry, not
         // those of the submenu underneath.
+        fillBar();
+
         const bar = document.querySelector<HTMLElement>('nav.navbar');
         if (bar) {
             followThePointer(bar);
