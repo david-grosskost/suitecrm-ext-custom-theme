@@ -98,7 +98,11 @@ html[${MARK}-pinned] nav.navbar { scrollbar-width: thin; }
    flow rather than merely faded, or the centring would still count it. */
 html:not([${MARK}-pinned]) nav.navbar [${MARK}-item],
 html:not([${MARK}-pinned]) nav.navbar [${MARK}-pin] { padding: 0 !important; justify-content: center; }
-html:not([${MARK}-pinned]) nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+/* Closed, no name shows — and the rule reaches the entries SuiteCRM has
+   just redrawn, before this extension has dressed them: otherwise the names
+   flash across the rail at every change of screen. */
+html:not([${MARK}-pinned]) nav.navbar a.top-nav-link > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]),
+html:not([${MARK}-pinned]) nav.navbar a.home-nav-link > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
   display: none !important;
 }
 
@@ -295,8 +299,13 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 [${MARK}-bar] .dropdown-menu li { display: block !important; }
 [${MARK}-bar] .dropdown-menu a {
   width: auto !important; height: auto !important;
-  justify-content: flex-start !important; padding: 8px 14px !important;
+  justify-content: flex-start !important; padding: 8px 16px !important;
 }
+/* Notifications and the like are plain text in the menu rather than links,
+   and would sit against its edges. */
+[${MARK}-bar] .dropdown-menu { padding: 6px 0 !important; }
+[${MARK}-bar] .dropdown-menu .notifications,
+[${MARK}-bar] .dropdown-menu > p, [${MARK}-bar] .dropdown-menu > div:not([class]) { padding: 8px 16px !important; }
 
 [${MARK}-bar] a, [${MARK}-bar] button, [${MARK}-bar] .action-link { color: #fff !important; }
 [${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
@@ -334,6 +343,10 @@ nav.navbar .navbar-toggler, nav.navbar .search-mobile-view { display: none !impo
    nothing reflows when it does. Padding on app-root rather than a margin on
    each child, because SuiteCRM adds children as it goes. */
 app-root { display: block; padding-left: var(--ct-rail); padding-top: var(--ct-bar); }
+/* SuiteCRM leaves room at the top of a view for the bar it used to carry
+   there. The bandeau holds that room now, so the title of a screen no longer
+   needs another forty-eight pixels above it. */
+app-root .list-view, app-root .record-view, app-root iframe { padding-top: 8px !important; }
 body { background: var(--st-surface, #f1f5f9); }
 `;
 
@@ -665,7 +678,7 @@ export class ExtensionModule {
             window.setTimeout(() => {
                 waiting = false;
                 void pass();
-            }, 120);
+            }, 50);
         };
 
         later();
@@ -710,6 +723,9 @@ export class ExtensionModule {
             const accent = (module !== null && accents[module] !== undefined) ? accents[module] : '#64748b';
             link.setAttribute(`${MARK}-module`, module ?? '');
             link.setAttribute(`${MARK}-item`, '');
+            // Closed, the rail shows icons alone: the name is told by the
+            // tooltip.
+            link.title = label;
             link.style.setProperty('--ct-accent', accent);
 
             // Only what this extension added is taken away: the label is
