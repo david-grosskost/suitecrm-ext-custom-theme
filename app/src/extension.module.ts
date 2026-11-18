@@ -182,7 +182,9 @@ nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; backg
    It is never replaced, only dressed around — Angular keeps it right when
    it reuses an entry for another module. */
 nav.navbar [${MARK}-item] > span { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
-nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { opacity: 1; }
+/* The icon is added at the end of the link, so that Angular's own label is
+   left untouched: it is put back in front here. */
+nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { opacity: 1; order: -1; }
 html[${MARK}-pinned] nav.navbar [${MARK}-item] > span { opacity: 1; }
 
 /* The submenu of a module opens beside the rail. Fixed rather than absolute:
