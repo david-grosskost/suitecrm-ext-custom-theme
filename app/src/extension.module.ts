@@ -161,7 +161,7 @@ nav.navbar [${MARK}-item], nav.navbar [${MARK}-item]:hover {
 nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .06); }
 nav.navbar [${MARK}-item]:hover [${MARK}-icon],
 nav.navbar [${MARK}-item]:hover [${MARK}-letter] { transform: scale(1.14); }
-nav.navbar [${MARK}-item]:hover > span { font-weight: 600; }
+nav.navbar [${MARK}-item]:hover > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) { font-weight: 600; }
 nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { transition: transform .12s ease; }
 
 /* Three dots on the right say an entry has a submenu, in place of the caret
@@ -181,11 +181,15 @@ nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; backg
 /* The label of an entry: Angular's own span for a module, ours for Home.
    It is never replaced, only dressed around — Angular keeps it right when
    it reuses an entry for another module. */
-nav.navbar [${MARK}-item] > span { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
+nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+  font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease;
+}
 /* The icon is added at the end of the link, so that Angular's own label is
    left untouched: it is put back in front here. */
-nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { opacity: 1; order: -1; }
-html[${MARK}-pinned] nav.navbar [${MARK}-item] > span { opacity: 1; }
+nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { order: -1; }
+html[${MARK}-pinned] nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+  opacity: 1;
+}
 
 /* The submenu of a module opens beside the rail. Fixed rather than absolute:
    the rail scrolls, and an absolute submenu would be cut off at its edge. The
@@ -286,7 +290,7 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 [${MARK}-bar] .search-bar-term {
   background: none !important; border: 0 !important; box-shadow: none !important;
   color: #fff; width: 220px !important; min-width: 0 !important;
-  padding: 0 14px 0 18px;
+  padding: 0 14px 0 18px !important;
   /* The field was four pixels taller than the pill and hung out of its
      bottom, which read as a word sitting too low. */
   height: 36px !important; min-height: 0 !important; max-height: 36px !important;
