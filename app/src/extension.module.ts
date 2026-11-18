@@ -183,7 +183,12 @@ nav.navbar scrm-menu-items-list { display: none !important; }
    too narrow for: the search, the quick actions, the user's menu. */
 [${MARK}-bar] {
   position: fixed; top: 0; left: 0; right: 0; height: var(--ct-bar);
-  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  display: flex; align-items: center; gap: 8px;
+  /* Indented by the closed rail, so what the bar carries lines up with the
+     content rather than sitting over the column of modules. The indent does
+     not follow the rail when it opens: a search field that slides away as
+     the menu unfolds is worse than one that stays put. */
+  padding: 0 14px 0 calc(var(--ct-rail) + 14px);
   background: linear-gradient(to right top, var(--st-header-from, #0369a0), var(--st-header-to, #3abff8));
   color: #fff; z-index: 1050;
 }
