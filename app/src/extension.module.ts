@@ -200,12 +200,26 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 [${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
 [${MARK}-bar] .dropdown-menu, [${MARK}-bar] .dropdown-menu a { color: #1d283a !important; }
 [${MARK}-bar] .dropdown-menu svg, [${MARK}-bar] .dropdown-menu svg * { fill: #64748b; }
-[${MARK}-bar] scrm-search-bar { display: block !important; }
+/* The search comes from a bar of its own, two lines tall and carrying
+   SuiteCRM's grey. Here it is a single pill, the height of the bandeau's
+   row: field and button side by side, nothing wrapping. */
+[${MARK}-bar] scrm-search-bar { display: flex !important; align-items: center; height: 36px; }
+[${MARK}-bar] form.search-bar { display: flex; align-items: center; height: 36px; margin: 0; }
+[${MARK}-bar] .input-group {
+  flex-wrap: nowrap !important; width: auto !important; height: 36px !important;
+  background: rgba(255, 255, 255, .16) !important; border-radius: 8px; overflow: hidden;
+}
 [${MARK}-bar] .search-bar-term {
-  background: rgba(255, 255, 255, .16); border: 0; border-radius: 8px;
-  color: #fff; min-width: 240px;
+  background: none !important; border: 0 !important; box-shadow: none !important;
+  color: #fff; width: 220px !important; min-width: 0 !important; height: 36px !important;
+  padding: 0 12px;
 }
 [${MARK}-bar] .search-bar-term::placeholder { color: rgba(255, 255, 255, .75); }
+[${MARK}-bar] .input-group-append { height: 36px; }
+[${MARK}-bar] .search-button {
+  height: 36px !important; border: 0 !important; background: none !important;
+  display: flex; align-items: center; padding: 0 10px;
+}
 
 /* The rail has no room for these: they live in the bar now. */
 nav.navbar .navbar-toggler, nav.navbar .search-mobile-view { display: none !important; }
