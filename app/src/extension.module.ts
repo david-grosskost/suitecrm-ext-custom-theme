@@ -213,9 +213,20 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 [${MARK}-bar] .action-group, [${MARK}-bar] .global-links {
   display: flex !important; align-items: center; gap: 2px; height: 40px;
 }
+/* Each control gets the same square, so they read as one row of buttons
+   rather than a line of odds and ends. */
 [${MARK}-bar] .action-group > div, [${MARK}-bar] .global-links > * {
-  height: 40px; display: flex !important; align-items: center;
+  flex: 0 0 40px !important; width: 40px !important; height: 40px;
+  display: flex !important; align-items: center; justify-content: center;
 }
+[${MARK}-bar] .action-link, [${MARK}-bar] .dropdown-toggle {
+  width: 40px; display: flex !important; align-items: center;
+  justify-content: center; padding: 0 !important;
+}
+/* The shortcut to the search on a narrow screen: the bar carries the search
+   itself, and an empty square would sit in the row. */
+[${MARK}-bar] .search-mobile-view { display: none !important; }
+[${MARK}-bar] .action-group > div:has(.search-mobile-view) { display: none !important; }
 [${MARK}-bar] ul.navbar-nav {
   flex-direction: row !important; align-items: center; height: 40px;
   margin: 0 !important; padding: 0 !important;
