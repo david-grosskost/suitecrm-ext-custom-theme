@@ -70,7 +70,8 @@ nav.navbar {
   border-right: 1px solid rgba(15, 23, 42, .08);
   z-index: 1040; transition: width .15s ease;
 }
-nav.navbar:hover { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
+/* The rail opens on a click, never on the pointer passing by: a menu that
+   unfolds by itself gets in the way of the screen behind it. */
 
 /* Every module is in the rail, so the list is longer than the screen and the
    rail scrolls. A box that scrolls clips what sticks out of it, which is why
@@ -79,7 +80,7 @@ nav.navbar { overflow-y: auto !important; overflow-x: hidden !important; scrollb
 
 /* Pinned open: the rail keeps its full width and the content stands beside
    it rather than under it, so nothing is hidden. */
-html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-shadow: none; }
+html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
 html[${MARK}-pinned] app-root { padding-left: var(--ct-rail-open); }
 html[${MARK}-pinned] nav.navbar [${MARK}-label] { opacity: 1; }
 
@@ -90,13 +91,18 @@ html[${MARK}-pinned] nav.navbar [${MARK}-label] { opacity: 1; }
   border-bottom: 1px solid rgba(15, 23, 42, .06);
 }
 [${MARK}-pin]:hover { background: rgba(15, 23, 42, .04); }
-[${MARK}-pin] span:first-child {
-  flex: 0 0 30px; display: flex; align-items: center; justify-content: center;
-  font-size: 18px; line-height: 1;
+[${MARK}-pin] span {
+  flex: 0 0 30px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; height: 30px;
 }
-[${MARK}-pin] span:last-child { font-size: 13px; opacity: 0; white-space: nowrap; transition: opacity .12s ease; }
-nav.navbar:hover [${MARK}-pin] span:last-child,
-html[${MARK}-pinned] [${MARK}-pin] span:last-child { opacity: 1; }
+[${MARK}-pin] i {
+  display: block; width: 18px; height: 2px; border-radius: 2px; background: currentColor;
+  transition: transform .15s ease, opacity .15s ease;
+}
+/* Open, the three lines fold into a cross. */
+html[${MARK}-pinned] [${MARK}-pin] i:first-child { transform: translateY(6px) rotate(45deg); }
+html[${MARK}-pinned] [${MARK}-pin] i:nth-child(2) { opacity: 0; }
+html[${MARK}-pinned] [${MARK}-pin] i:last-child { transform: translateY(-6px) rotate(-45deg); }
 
 nav.navbar .navbar-collapse { display: block !important; width: 100% !important; flex-basis: auto !important; }
 nav.navbar ul.navbar-nav { flex-direction: column !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
@@ -110,12 +116,22 @@ nav.navbar [${MARK}-item] {
   height: var(--ct-rail); padding: 0 13px; margin: 0 !important;
   white-space: nowrap; overflow: hidden; position: relative;
 }
+/* Bootstrap draws a caret with a border on ::after; the three dots say it
+   better, and emptying the link does not remove a pseudo-element. */
+nav.navbar [${MARK}-item]::after { display: none !important; }
+
 nav.navbar [${MARK}-item]::before {
   content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%;
   background: var(--ct-accent, transparent);
 }
 nav.navbar [${MARK}-icon] { flex: 0 0 30px; width: 30px; height: 30px; display: block; }
 nav.navbar [${MARK}-icon] svg { width: 30px; height: 30px; display: block; }
+
+/* Home keeps the icon SuiteCRM draws for it, which is white and invisible on
+   a light rail: it takes the entry's colour. */
+nav.navbar a.home-nav-link scrm-image svg,
+nav.navbar a.home-nav-link scrm-image svg * { fill: var(--ct-accent, #64748b) !important; }
+nav.navbar a.home-nav-link scrm-image { flex: 0 0 30px; display: flex; justify-content: center; }
 nav.navbar [${MARK}-letter] {
   flex: 0 0 30px; width: 30px; height: 30px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
@@ -137,21 +153,25 @@ nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { transition: transform .
 nav.navbar [${MARK}-more] {
   margin-left: auto; display: flex; gap: 3px; opacity: 0; transition: opacity .12s ease;
 }
-nav.navbar:hover [${MARK}-more],
 html[${MARK}-pinned] nav.navbar [${MARK}-more] { opacity: .45; }
 nav.navbar [${MARK}-item]:hover [${MARK}-more] { opacity: .9; }
 nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
 nav.navbar [${MARK}-label] { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
-nav.navbar:hover [${MARK}-label] { opacity: 1; }
+html[${MARK}-pinned] nav.navbar [${MARK}-label] { opacity: 1; }
 
 /* The submenu of a module opens beside the rail. Fixed rather than absolute:
    the rail scrolls, and an absolute submenu would be cut off at its edge. The
    code sets top and left as the pointer arrives. */
 nav.navbar .dropdown-menu.submenu {
+  display: none !important;
   position: fixed !important; left: var(--ct-rail) !important; margin: 0 !important;
   border: 1px solid rgba(15, 23, 42, .1); border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
 }
+html[${MARK}-pinned] nav.navbar .dropdown-menu.submenu { left: var(--ct-rail-open) !important; }
+/* Opened by the three dots alone, never by the row: clicking a module should
+   go to the module, not unfold a menu under the pointer. */
+nav.navbar .dropdown-menu.submenu[${MARK}-open] { display: block !important; }
 
 /* SuiteCRM folds the modules that do not fit its horizontal bar into an
    "Options" menu. A column has room for all of them, so the fold is undone:
@@ -208,23 +228,198 @@ const followThePointer = (rail: HTMLElement): void => {
     }
     rail.setAttribute(`${MARK}-follows`, '');
 
-    rail.addEventListener('mouseover', event => {
+    let closing = 0;
+    const closeAll = (): void => {
+        for (const open of Array.from(document.querySelectorAll(`[${MARK}-open]`))) {
+            open.removeAttribute(`${MARK}-open`);
+        }
+    };
+
+    document.addEventListener('mouseover', event => {
         const over = event.target;
         if (!(over instanceof Element)) {
             return;
         }
-        const entry = over.closest('li.top-nav');
-        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
-        const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
-        if (!submenu || !link) {
+
+        // Staying on the dots that opened it, or walking onto the submenu
+        // itself, keeps it open: the pointer has to cross the gap between.
+        if (over.closest('.dropdown-menu.submenu')) {
+            window.clearTimeout(closing);
+
             return;
         }
 
+        const dots = over.closest(`[${MARK}-more]`);
+        if (!dots) {
+            closing = window.setTimeout(closeAll, 250);
+
+            return;
+        }
+
+        window.clearTimeout(closing);
+        const entry = dots.closest('li.top-nav');
+        const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
+        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
+        if (!link || !submenu) {
+            return;
+        }
+
+        closeAll();
+        submenu.setAttribute(`${MARK}-open`, '');
         const box = link.getBoundingClientRect();
-        const height = submenu.offsetHeight;
-        // Against the bottom of the window, the submenu rises rather than
+        // Against the bottom of the window the submenu rises rather than
         // running off the screen.
-        const top = Math.min(box.top, Math.max(0, window.innerHeight - height - 8));
+        const top = Math.min(box.top, Math.max(0, window.innerHeight - submenu.offsetHeight - 8));
+        submenu.style.top = `${top}px`;
+    });
+};
+
+/** The three dots that say an entry opens a submenu. */
+const moreDots = (): HTMLElement => {
+    const dots = document.createElement('span');
+    dots.setAttribute(`${MARK}-more`, '');
+    dots.setAttribute('aria-hidden', 'true');
+    for (let drawn = 0; drawn < 3; drawn++) {
+        dots.append(document.createElement('i'));
+    }
+
+    return dots;
+};
+
+/**
+ * Waits for SuiteCRM to have drawn its menu, and says whether it did.
+ *
+ * Two reasons to wait. SuiteCRM measures the bar to decide how many modules
+ * fit, and it measures once: a rail of 56 px applied first means no module
+ * fits, and the menu stays empty for good. And the login screen has no menu
+ * at all, so it keeps SuiteCRM's own layout rather than an empty rail.
+ */
+const menuDrawn = async (): Promise<boolean> => {
+    for (let waited = 0; waited < 20000; waited += 200) {
+        if (document.querySelector('nav.navbar li.top-nav a.top-nav-link') !== null) {
+            return true;
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 200));
+    }
+
+    return false;
+};
+
+/**
+ * Whether the rail is pinned open. Kept per browser, because it is a habit of
+ * the person sitting there, not a setting of the instance.
+ */
+const PIN_KEY = 'custom-theme.pinned';
+
+const readPin = (): boolean => {
+    try {
+        return window.localStorage.getItem(PIN_KEY) === 'yes';
+    } catch {
+        return false;
+    }
+};
+
+const writePin = (pinned: boolean): void => {
+    try {
+        window.localStorage.setItem(PIN_KEY, pinned ? 'yes' : 'no');
+    } catch {
+        // A browser that refuses storage still gets a working rail, it just
+        // forgets the choice between visits.
+    }
+};
+
+const applyPin = (pinned: boolean): void => {
+    if (pinned) {
+        document.documentElement.setAttribute(`${MARK}-pinned`, '');
+    } else {
+        document.documentElement.removeAttribute(`${MARK}-pinned`);
+    }
+};
+
+/** The button at the top of the rail: three lines, a cross once open. */
+const pinButton = (): HTMLElement => {
+    const button = document.createElement('button');
+    button.setAttribute(`${MARK}-pin`, '');
+    button.type = 'button';
+
+    const lines = document.createElement('span');
+    for (let drawn = 0; drawn < 3; drawn++) {
+        lines.append(document.createElement('i'));
+    }
+    button.append(lines);
+
+    const says = (pinned: boolean): void => {
+        const words = pinned ? 'Replier le menu' : 'Ouvrir le menu';
+        button.title = words;
+        button.setAttribute('aria-label', words);
+    };
+    says(document.documentElement.hasAttribute(`${MARK}-pinned`));
+
+    button.addEventListener('click', () => {
+        const pinned = !document.documentElement.hasAttribute(`${MARK}-pinned`);
+        applyPin(pinned);
+        writePin(pinned);
+        says(pinned);
+    });
+
+    return button;
+};
+
+/**
+ * Places a module's submenu beside its entry. The rail scrolls, so the
+ * submenu is fixed rather than absolute, and only the code knows how far
+ * down the entry has ended up. One listener on the rail rather than one per
+ * entry: Angular replaces the entries as the menu changes, and a listener
+ * set on an entry goes with it.
+ */
+const followThePointer = (rail: HTMLElement): void => {
+    if (rail.hasAttribute(`${MARK}-follows`)) {
+        return;
+    }
+    rail.setAttribute(`${MARK}-follows`, '');
+
+    let closing = 0;
+    const closeAll = (): void => {
+        for (const open of Array.from(document.querySelectorAll(`[${MARK}-open]`))) {
+            open.removeAttribute(`${MARK}-open`);
+        }
+    };
+
+    document.addEventListener('mouseover', event => {
+        const over = event.target;
+        if (!(over instanceof Element)) {
+            return;
+        }
+
+        // Staying on the dots that opened it, or walking onto the submenu
+        // itself, keeps it open: the pointer has to cross the gap between.
+        if (over.closest('.dropdown-menu.submenu')) {
+            window.clearTimeout(closing);
+
+            return;
+        }
+
+        const dots = over.closest(`[${MARK}-more]`);
+        if (!dots) {
+            closing = window.setTimeout(closeAll, 250);
+
+            return;
+        }
+
+        window.clearTimeout(closing);
+        const entry = dots.closest('li.top-nav');
+        const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
+        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
+        if (!link || !submenu) {
+            return;
+        }
+
+        closeAll();
+        submenu.setAttribute(`${MARK}-open`, '');
+        const box = link.getBoundingClientRect();
+        // Against the bottom of the window the submenu rises rather than
+        // running off the screen.
+        const top = Math.min(box.top, Math.max(0, window.innerHeight - submenu.offsetHeight - 8));
         submenu.style.top = `${top}px`;
     });
 };
@@ -429,13 +624,7 @@ export class ExtensionModule {
             followThePointer(bar);
         }
         if (bar && !bar.querySelector(`[${MARK}-pin]`)) {
-            const button = pinButton();
-            if (document.documentElement.hasAttribute(`${MARK}-pinned`)) {
-                const spans = button.querySelectorAll('span');
-                spans[0].textContent = '\u00BB';
-                spans[1].textContent = 'Replier';
-            }
-            bar.prepend(button);
+            bar.prepend(pinButton());
         }
 
         const entries = document.querySelectorAll(
@@ -447,13 +636,16 @@ export class ExtensionModule {
             if (link.hasAttribute(`${MARK}-item`)) {
                 continue;
             }
-            const label = (link.textContent ?? '').trim();
+            // Home carries an icon and no words at all, so it needs its
+            // name given to it rather than read from the page.
+            const home = link.matches('a.home-nav-link');
+            const label = home ? 'Accueil' : (link.textContent ?? '').trim();
             if (!label) {
                 continue;
             }
 
-            const module = moduleOf(link, accents);
-            const accent = module ? accents[module] : '#94a3b8';
+            const module = home ? 'Home' : moduleOf(link, accents);
+            const accent = (module !== null && accents[module] !== undefined) ? accents[module] : '#64748b';
             link.setAttribute(`${MARK}-item`, '');
             link.style.setProperty('--ct-accent', accent);
 
@@ -461,9 +653,13 @@ export class ExtensionModule {
             text.setAttribute(`${MARK}-label`, '');
             text.textContent = label;
 
-            const svg = module ? await iconFor(module) : null;
-            let mark: HTMLElement;
-            if (svg) {
+            // Home keeps the icon SuiteCRM already draws inside the link;
+            // the stylesheet gives it the entry's colour.
+            const svg = (module !== null && !home) ? await iconFor(module) : null;
+            let mark: HTMLElement = text;
+            if (home) {
+                mark = text;
+            } else if (svg) {
                 mark = document.createElement('span');
                 mark.setAttribute(`${MARK}-icon`, '');
                 mark.innerHTML = svg.replace(ICON_GREY, accent);
@@ -478,8 +674,12 @@ export class ExtensionModule {
                 mark = letterTile(label, accent);
             }
 
-            link.textContent = '';
-            link.append(mark, text);
+            if (home) {
+                link.append(text);
+            } else {
+                link.textContent = '';
+                link.append(mark, text);
+            }
             if (link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu')) {
                 link.append(moreDots());
             }
