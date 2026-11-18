@@ -1,6 +1,5 @@
 import {NgModule} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {provideHttpClient, withInterceptorsFromDi} from '@angular/common/http';
 
 // custom-theme: loaded by SuiteCRM 8 when the interface starts (module
 // federation, declared by config/extension.php). It changes the frame around
@@ -326,7 +325,6 @@ const letterTile = (label: string, accent: string): HTMLElement => {
 @NgModule({
     declarations: [],
     imports: [CommonModule],
-    providers: [provideHttpClient(withInterceptorsFromDi())]
 })
 export class ExtensionModule {
     // SuiteCRM 8.10.2 creates the module (createNgModule) but never calls
@@ -354,11 +352,37 @@ export class ExtensionModule {
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
         // decorate it without touching SuiteCRM's components.
-        const decorate = (): void => {
-            void this.decorate(theme.accents ?? {});
+        //
+        // Watching costs care. Angular's first render fires mutations by the
+        // thousand, so the work is held back until they stop, and one pass
+        // never starts while another is still running: without that, hundreds
+        // of passes overlap inside Angular's own rendering.
+        let waiting = false;
+        let running = false;
+        const pass = async (): Promise<void> => {
+            if (running) {
+                return;
+            }
+            running = true;
+            try {
+                await this.decorate(theme.accents ?? {});
+            } finally {
+                running = false;
+            }
         };
-        decorate();
-        new MutationObserver(decorate).observe(document.body, {childList: true, subtree: true});
+        const later = (): void => {
+            if (waiting) {
+                return;
+            }
+            waiting = true;
+            window.setTimeout(() => {
+                waiting = false;
+                void pass();
+            }, 120);
+        };
+
+        later();
+        new MutationObserver(later).observe(document.body, {childList: true, subtree: true});
     }
 
     private async decorate(accents: Record<string, string>): Promise<void> {
