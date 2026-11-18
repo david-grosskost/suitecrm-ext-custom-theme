@@ -1,0 +1,17 @@
+# Thème vertical (extension custom-theme) : combien de modules SuiteCRM 8
+# accepte d'afficher dans son menu, par taille d'écran.
+#
+# SuiteCRM plafonne à 12 sur grand écran et replie le reste dans un menu
+# « Options », parce qu'une barre horizontale manque de largeur. Le rail est
+# vertical et défile : le plafond n'a plus de raison d'être, et les modules
+# repliés perdraient leur sous-menu, que SuiteCRM ne construit pas pour eux.
+#
+# SuiteCRM importe ce fichier de lui-même (config/services.yaml :
+# ../extensions/*/config/services/*.yaml), donc rien du cœur n'est modifié.
+parameters:
+  themes.navigation_tab_limits:
+    XSmall: 60
+    Small: 60
+    Medium: 60
+    Large: 60
+    XLarge: 60
