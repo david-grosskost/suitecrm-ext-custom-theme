@@ -31,9 +31,19 @@ reteinter.
 alors au lieu d'être recouvert. Le choix est gardé par navigateur : c'est une habitude de
 la personne qui travaille, pas un réglage de l'instance.
 
-**Les couleurs se choisissent** dans Administration → Thème vertical → Couleurs du thème :
+**Tous les modules sont dans le rail.** SuiteCRM replie dans un menu « Options » ceux qui
+ne tiennent pas dans sa barre horizontale ; une colonne a la place pour tous, donc le repli
+est défait et son entrée disparaît. Le rail défile quand la liste dépasse l'écran.
+
+**Les couleurs se choisissent** sur la page `index.php?entryPoint=customThemeAdmin` :
 couleur principale, les deux bouts du dégradé du bandeau, fond des écrans, fond du menu.
-Un bouton rétablit les couleurs d'origine.
+Un bouton rétablit les couleurs d'origine. Elle est réservée aux administrateurs.
+
+**Elle n'a pas d'entrée dans le menu d'administration**, et ce n'est pas un oubli : dans
+SuiteCRM 8.10.2, une extension qui ajoute un groupe d'administration (`$admin_group_header`)
+**vide le menu des modules de toute l'interface** — mesuré sur instance neuve, reproduit
+trois fois. Déclarer l'entrée sans créer de groupe ne casse rien mais ne l'affiche nulle
+part. Tant que ce n'est pas résolu, la page s'atteint par son adresse.
 
 ## Fonctionnement
 
