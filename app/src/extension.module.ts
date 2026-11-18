@@ -27,6 +27,7 @@ const LOGO_URL = 'legacy/index.php?entryPoint=getImage&themeName=suite8&imageNam
 const ICON_GREY = /#778591/gi;
 
 const STYLE_ID = 'custom-theme-style';
+const ICON_STYLE_ID = 'custom-theme-icons';
 const MARK = 'data-custom-theme';
 
 interface Rail {
@@ -39,6 +40,45 @@ interface Payload {
     accents: Record<string, string>;
     rail: Rail;
 }
+
+/**
+ * Paints the icons from the stylesheet rather than by hand.
+ *
+ * Angular redraws the whole menu at every change of screen — barely one
+ * entry in thirty survives — so an icon added to an entry disappears with
+ * it and comes back a moment later, which flickers. Nothing in the markup
+ * names the module except the addresses of its submenu, and :has() can
+ * reach those: one rule per module, written once, and the icon is there the
+ * instant SuiteCRM draws the entry.
+ */
+const paintIcons = async (accents: Record<string, string>): Promise<string[]> => {
+    const rules: string[] = [];
+    const painted: string[] = [];
+    for (const [module, accent] of Object.entries(accents)) {
+        const found = `nav.navbar li.top-nav:has(a[href*="return_module=${module}&"])`;
+        rules.push(`${found} a.top-nav-link { --ct-accent: ${accent}; }`);
+
+        const svg = await iconFor(module);
+        if (svg === null) {
+            continue;
+        }
+        const drawn = encodeURIComponent(svg.replace(ICON_GREY, accent))
+            .replace(/'/g, '%27')
+            .replace(/"/g, '%22');
+        rules.push(`${found} a.top-nav-link::after { background-image: url("data:image/svg+xml,${drawn}"); }`);
+        painted.push(module);
+    }
+
+    let sheet = document.getElementById(ICON_STYLE_ID);
+    if (sheet === null) {
+        sheet = document.createElement('style');
+        sheet.id = ICON_STYLE_ID;
+        document.head.append(sheet);
+    }
+    sheet.textContent = rules.join('\n');
+
+    return painted;
+};
 
 /** The stylesheet of the theme, created once and rewritten when needed. */
 const styleSheet = (): HTMLStyleElement => {
@@ -139,16 +179,22 @@ nav.navbar .menu-item-wrapper { width: 100% !important; }
 
 /* One row per module: the tinted icon, then the label, which only shows
    once the rail is open. */
-nav.navbar [${MARK}-item] {
+nav.navbar a.top-nav-link, nav.navbar a.home-nav-link {
   display: flex !important; align-items: center; gap: 12px;
   height: var(--ct-row); padding: 0 13px; margin: 0 !important;
   white-space: nowrap; overflow: hidden; position: relative;
 }
-/* Bootstrap draws a caret with a border on ::after; the three dots say it
-   better, and emptying the link does not remove a pseudo-element. */
-nav.navbar [${MARK}-item]::after { display: none !important; }
+/* Bootstrap draws a caret on ::after; that space becomes the icon instead,
+   painted by the rules written for each module. */
+nav.navbar a.top-nav-link::after {
+  content: '' !important; display: block; order: -1; flex: 0 0 30px;
+  width: 30px; height: 30px; border: 0 !important; margin: 0 !important;
+  background-repeat: no-repeat; background-position: center; background-size: 30px 30px;
+}
+/* A module SuiteCRM ships no icon for keeps the letter tile added to it. */
+nav.navbar a.top-nav-link:has([${MARK}-letter])::after { display: none; }
 
-nav.navbar [${MARK}-item]::before {
+nav.navbar a.top-nav-link::before, nav.navbar a.home-nav-link::before {
   content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%;
   background: var(--ct-accent, transparent);
 }
@@ -178,6 +224,18 @@ nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { transition: transform .
 
 /* Three dots on the right say an entry has a submenu, in place of the caret
    wiped when the entry is dressed. They show once the rail is open. */
+/* The name of a module, shown beside its icon while the rail is closed.
+   The browser's own tooltip is slow to appear and cannot be styled. */
+[${MARK}-tip] {
+  position: fixed; z-index: 1060; transform: translateY(-50%);
+  background: #1d283a; color: #fff; font-size: 12px; line-height: 1;
+  padding: 7px 10px; border-radius: 6px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .1s ease;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .25);
+}
+[${MARK}-tip][${MARK}-shown] { opacity: 1; }
+html[${MARK}-pinned] [${MARK}-tip] { display: none; }
+
 /* The dots take the whole height of the row: a target of a few pixels is
    one you fight with. They show on the row's hover even when the rail is
    closed, where they stand in a column for want of width. */
@@ -304,8 +362,7 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 /* Notifications and the like are plain text in the menu rather than links,
    and would sit against its edges. */
 [${MARK}-bar] .dropdown-menu { padding: 6px 0 !important; }
-[${MARK}-bar] .dropdown-menu .notifications,
-[${MARK}-bar] .dropdown-menu > p, [${MARK}-bar] .dropdown-menu > div:not([class]) { padding: 8px 16px !important; }
+[${MARK}-bar] .dropdown-menu .dropdown-item { padding-left: 16px !important; padding-right: 16px !important; }
 
 [${MARK}-bar] a, [${MARK}-bar] button, [${MARK}-bar] .action-link { color: #fff !important; }
 [${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
@@ -461,6 +518,20 @@ const followThePointer = (rail: HTMLElement): void => {
             return;
         }
 
+        // The name of the entry under the pointer, while the rail is closed.
+        const tip = tooltip();
+        const row = over.closest<HTMLElement>(`[${MARK}-item]`);
+        const name = row?.getAttribute(`${MARK}-name`) ?? '';
+        if (row !== null && name !== '' && !document.documentElement.hasAttribute(`${MARK}-pinned`)) {
+            const place = row.getBoundingClientRect();
+            tip.textContent = name;
+            tip.style.top = `${Math.round(place.top + place.height / 2)}px`;
+            tip.style.left = `${Math.round(place.right + 8)}px`;
+            tip.setAttribute(`${MARK}-shown`, '');
+        } else {
+            tip.removeAttribute(`${MARK}-shown`);
+        }
+
         // Walking onto the submenu keeps it open: the pointer has to cross
         // the gap between the dots and it.
         if (over.closest('.dropdown-menu.submenu')) {
@@ -492,6 +563,20 @@ const followThePointer = (rail: HTMLElement): void => {
         const top = Math.min(box.top, Math.max(0, window.innerHeight - submenu.offsetHeight - 8));
         submenu.style.top = `${top}px`;
     });
+};
+
+/** The box that shows a module's name beside its icon, created once. */
+const tooltip = (): HTMLElement => {
+    const known = document.querySelector<HTMLElement>(`[${MARK}-tip]`);
+    if (known !== null) {
+        return known;
+    }
+
+    const tip = document.createElement('div');
+    tip.setAttribute(`${MARK}-tip`, '');
+    document.body.append(tip);
+
+    return tip;
 };
 
 /** The three dots that say an entry opens a submenu. */
@@ -648,6 +733,7 @@ export class ExtensionModule {
 
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
         applyPin(readPin());
+        const painted = await paintIcons(theme.accents ?? {});
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
@@ -665,7 +751,7 @@ export class ExtensionModule {
             }
             running = true;
             try {
-                await this.decorate(theme.accents ?? {});
+                await this.decorate(theme.accents ?? {}, painted);
             } finally {
                 running = false;
             }
@@ -685,7 +771,7 @@ export class ExtensionModule {
         new MutationObserver(later).observe(document.body, {childList: true, subtree: true});
     }
 
-    private async decorate(accents: Record<string, string>): Promise<void> {
+    private async decorate(accents: Record<string, string>, painted: string[]): Promise<void> {
         // The modules sit in li.top-nav, Home in the separate component next
         // to them. The link to dress is the one at the top of the entry, not
         // those of the submenu underneath.
@@ -723,9 +809,10 @@ export class ExtensionModule {
             const accent = (module !== null && accents[module] !== undefined) ? accents[module] : '#64748b';
             link.setAttribute(`${MARK}-module`, module ?? '');
             link.setAttribute(`${MARK}-item`, '');
-            // Closed, the rail shows icons alone: the name is told by the
-            // tooltip.
-            link.title = label;
+            // Closed, the rail shows icons alone: the name is kept here for
+            // the tooltip drawn beside it.
+            link.setAttribute(`${MARK}-name`, label);
+            link.setAttribute('aria-label', label);
             link.style.setProperty('--ct-accent', accent);
 
             // Only what this extension added is taken away: the label is
@@ -743,23 +830,12 @@ export class ExtensionModule {
                 text.textContent = label;
                 link.append(text);
             } else {
-                const svg = module !== null ? await iconFor(module) : null;
-                let mark: HTMLElement;
-                if (svg) {
-                    mark = document.createElement('span');
-                    mark.setAttribute(`${MARK}-icon`, '');
-                    mark.innerHTML = svg.replace(ICON_GREY, accent);
-                    // The icons SuiteCRM ships carry <desc>Created with
-                    // Sketch.</desc>, which a screen reader would read out
-                    // before the module's name.
-                    mark.setAttribute('aria-hidden', 'true');
-                    for (const noise of Array.from(mark.querySelectorAll('title, desc'))) {
-                        noise.remove();
-                    }
-                } else {
-                    mark = letterTile(label, accent);
+                // The icon itself is painted by the stylesheet, so it is
+                // there the instant SuiteCRM draws the entry. Only a module
+                // without an icon still needs a tile added to it.
+                if (module === null || !painted.includes(module)) {
+                    link.append(letterTile(label, accent));
                 }
-                link.append(mark);
             }
 
             if (link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu')) {
