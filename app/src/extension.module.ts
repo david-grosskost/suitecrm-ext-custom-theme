@@ -17,6 +17,9 @@ import {CommonModule} from '@angular/common';
 
 const THEME_URL = 'legacy/index.php?entryPoint=customTheme';
 const ICON_URL = (module: string): string => `legacy/themes/suite8/images/${module}.svg`;
+// The client's logo, through SuiteCRM's own door: it serves the one uploaded
+// in Administration, and its default when none was.
+const LOGO_URL = 'legacy/index.php?entryPoint=getImage&themeName=suite8&imageName=company_logo.png';
 
 // The grey SuiteCRM paints its module icons with. Replaced by the module's
 // accent; the white inner detail is kept, which is what gives the icons their
@@ -183,19 +186,44 @@ nav.navbar scrm-menu-items-list { display: none !important; }
    too narrow for: the search, the quick actions, the user's menu. */
 [${MARK}-bar] {
   position: fixed; top: 0; left: 0; right: 0; height: var(--ct-bar);
-  display: flex; align-items: center; gap: 8px;
-  /* Indented by the closed rail, so what the bar carries lines up with the
-     content rather than sitting over the column of modules. The indent does
-     not follow the rail when it opens: a search field that slides away as
-     the menu unfolds is worse than one that stays put. */
-  padding: 0 14px 0 calc(var(--ct-rail) + 14px);
+  display: flex; align-items: center; gap: 8px; padding: 0 14px;
   background: linear-gradient(to right top, var(--st-header-from, #0369a0), var(--st-header-to, #3abff8));
   color: #fff; z-index: 1050;
 }
 [${MARK}-bar] [${MARK}-gap] { flex: 1 1 auto; }
 
+/* The client's logo, served by SuiteCRM itself: the one uploaded in
+   Administration when there is one. */
+[${MARK}-bar] [${MARK}-logo] {
+  flex: 0 0 auto; display: flex; align-items: center;
+  width: calc(var(--ct-rail) * 3); max-width: 190px;
+}
+[${MARK}-bar] [${MARK}-logo] img { max-height: 34px; max-width: 100%; object-fit: contain; display: block; }
+
+/* The search sits in the middle of the window whatever stands on either
+   side of it, so it is taken out of the row rather than squeezed between. */
+[${MARK}-bar] scrm-search-bar {
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+
 /* The controls keep their behaviour; only their colours change, so they can
    be read on the gradient. */
+/* The quick actions and the user's menu were stacked in a column, as the
+   rail asked of them: in a bar they stand in a row. */
+[${MARK}-bar] .action-group, [${MARK}-bar] .global-links {
+  display: flex !important; align-items: center; gap: 2px; height: 40px;
+}
+[${MARK}-bar] .action-group > div, [${MARK}-bar] .global-links > * {
+  height: 40px; display: flex !important; align-items: center;
+}
+[${MARK}-bar] ul.navbar-nav {
+  flex-direction: row !important; align-items: center; height: 40px;
+  margin: 0 !important; padding: 0 !important;
+}
+[${MARK}-bar] li { display: flex; align-items: center; }
+/* Their own menus hang under the bar, not beside it. */
+[${MARK}-bar] .dropdown-menu { position: absolute !important; top: 100% !important; }
+
 [${MARK}-bar] a, [${MARK}-bar] button, [${MARK}-bar] .action-link { color: #fff !important; }
 [${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
 [${MARK}-bar] .dropdown-menu, [${MARK}-bar] .dropdown-menu a { color: #1d283a !important; }
@@ -269,6 +297,18 @@ const topBar = (): HTMLElement => {
 
     const bar = document.createElement('header');
     bar.setAttribute(`${MARK}-bar`, '');
+
+    const logo = document.createElement('span');
+    logo.setAttribute(`${MARK}-logo`, '');
+    const image = document.createElement('img');
+    image.src = LOGO_URL;
+    image.alt = '';
+    // An instance without a logo of its own should show nothing rather than
+    // a broken image.
+    image.addEventListener('error', () => logo.remove());
+    logo.append(image);
+    bar.append(logo);
+
     const gap = document.createElement('span');
     gap.setAttribute(`${MARK}-gap`, '');
     bar.append(gap);
