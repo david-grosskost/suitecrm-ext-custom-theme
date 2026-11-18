@@ -80,6 +80,16 @@ const paintIcons = async (accents: Record<string, string>): Promise<string[]> =>
     return painted;
 };
 
+/**
+ * The login screen: no menu, so no rail — and nothing else around the form
+ * either. The logo already stands in the middle of it, so SuiteCRM's bar and
+ * its footer have nothing to say there.
+ */
+const bareScreen = (): string => `
+nav.navbar, scrm-footer-ui, footer { display: none !important; }
+body { background: var(--st-surface, #f1f5f9); }
+`;
+
 /** The stylesheet of the theme, created once and rewritten when needed. */
 const styleSheet = (): HTMLStyleElement => {
     let style = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
@@ -605,20 +615,13 @@ const moreDots = (): HTMLElement => {
 };
 
 /**
- * Waits for SuiteCRM to have drawn its menu, and says whether it did.
- *
- * The login screen has no menu at all, so it keeps SuiteCRM's own layout
- * rather than an empty rail.
+ * Waits for SuiteCRM to have drawn its menu, however long that takes: before
+ * it, there is the login screen, and a person takes the time they take.
  */
-const menuDrawn = async (): Promise<boolean> => {
-    for (let waited = 0; waited < 20000; waited += 200) {
-        if (document.querySelector('nav.navbar li.top-nav a.top-nav-link') !== null) {
-            return true;
-        }
-        await new Promise(resolve => window.setTimeout(resolve, 200));
+const menuDrawn = async (): Promise<void> => {
+    while (document.querySelector('nav.navbar li.top-nav a.top-nav-link') === null) {
+        await new Promise(resolve => window.setTimeout(resolve, 300));
     }
-
-    return false;
 };
 
 /**
@@ -738,15 +741,15 @@ export class ExtensionModule {
         for (const [name, value] of Object.entries(theme.variables ?? {})) {
             document.documentElement.style.setProperty(name, value);
         }
-        // The colours are set at once, so the login screen is themed too.
-        // The rail waits for the menu: see menuDrawn.
-        if (!await menuDrawn()) {
-            return;
-        }
+        // The colours are set at once, so the login screen is themed too,
+        // and that screen is stripped of what it does not need. The rail
+        // waits for the menu: see menuDrawn.
+        styleSheet().textContent = bareScreen();
+        const painted = await paintIcons(theme.accents ?? {});
+        await menuDrawn();
 
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
         applyPin(readPin());
-        const painted = await paintIcons(theme.accents ?? {});
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
