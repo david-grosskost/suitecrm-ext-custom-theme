@@ -220,9 +220,15 @@ nav.navbar scrm-menu-items-list { display: none !important; }
   display: flex !important; align-items: center; justify-content: center;
 }
 [${MARK}-bar] .action-link, [${MARK}-bar] .dropdown-toggle {
-  width: 40px; display: flex !important; align-items: center;
+  width: 40px; height: 40px !important; display: flex !important; align-items: center;
   justify-content: center; padding: 0 !important;
 }
+/* The icons sat on the text baseline inside their wrapper, which left them
+   hanging at the bottom of the bar however well the wrapper was centred. */
+[${MARK}-bar] scrm-image, [${MARK}-bar] .action-btn-icon, [${MARK}-bar] .sicon {
+  display: flex !important; align-items: center; justify-content: center; line-height: 0;
+}
+[${MARK}-bar] svg { display: block; }
 /* The shortcut to the search on a narrow screen: the bar carries the search
    itself, and an empty square would sit in the row. */
 [${MARK}-bar] .search-mobile-view { display: none !important; }
