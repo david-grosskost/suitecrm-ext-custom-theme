@@ -27,13 +27,32 @@ instance à l'autre et d'une version à l'autre. Le reste de l'interface suit le
 de l'entreprise, posées en variables CSS — c'est tout ce dont SuiteCRM 8 a besoin pour se
 reteinter.
 
-## Ce qu'elle ne fait pas encore
+**Le rail s'épingle.** Un bouton en tête du rail le garde ouvert ; le contenu se décale
+alors au lieu d'être recouvert. Le choix est gardé par navigateur : c'est une habitude de
+la personne qui travaille, pas un réglage de l'instance.
 
-- **La page d'administration** pour choisir les couleurs. Elles sont lues dans la table
-  `config` (catégorie `custom_theme`), mais rien ne les y écrit encore : l'extension
-  utilise ses valeurs par défaut.
-- **Le rail ne s'épingle pas** : il s'ouvre au survol et se referme. Un bouton pour le
-  garder ouvert viendra.
+**Tous les modules sont dans le rail**, chacun avec son sous-menu. SuiteCRM n'en affiche
+que huit et replie le reste dans un menu « Options » : non par manque de place mesurée,
+mais par un plafond, `default_max_tabs` côté historique et `themes.navigation_tab_limits`
+côté SuiteCRM 8. Une colonne qui défile n'a pas cette contrainte, et un module replié
+perdrait son sous-menu, que SuiteCRM ne construit pas pour lui. L'extension lève les deux
+plafonds — le second par `config/services/`, que SuiteCRM importe de lui-même — et masque
+la copie repliée, devenue un doublon.
+
+**Le rail s'ouvre au clic**, jamais au passage de la souris : un menu qui se déplie tout
+seul gêne l'écran derrière lui. Trois lignes en tête du rail, qui deviennent une croix.
+Le choix est gardé par navigateur. Le sous-menu d'un module s'ouvre sur ses trois points,
+pas sur toute la ligne : cliquer un module doit mener au module.
+
+**Les couleurs se choisissent** sur la page `index.php?entryPoint=customThemeAdmin` :
+couleur principale, les deux bouts du dégradé du bandeau, fond des écrans, fond du menu.
+Un bouton rétablit les couleurs d'origine. Elle est réservée aux administrateurs.
+
+**Elle n'a pas d'entrée dans le menu d'administration**, et ce n'est pas un oubli : dans
+SuiteCRM 8.10.2, une extension qui ajoute un groupe d'administration (`$admin_group_header`)
+**vide le menu des modules de toute l'interface** — mesuré sur instance neuve, reproduit
+trois fois. Déclarer l'entrée sans créer de groupe ne casse rien mais ne l'affiche nulle
+part. Tant que ce n'est pas résolu, la page s'atteint par son adresse.
 
 ## Fonctionnement
 
@@ -50,6 +69,24 @@ reteinter.
   lui donne une chance de survivre aux montées de version.
 - Le menu est redessiné par Angular à chaque changement, donc la décoration est réappliquée
   par un observateur du DOM plutôt qu'une seule fois au chargement.
+- Les couleurs choisies sont écrites par un **second point d'entrée**,
+  `legacy/index.php?entryPoint=customThemeAdmin`, lui **derrière la connexion**, qui
+  renvoie un 403 à qui n'est pas administrateur. Il n'écrit que cinq codes couleur, dans
+  la table `config`, dans la catégorie de l'extension.
+
+## Ce qu'un développeur doit relire
+
+La page d'administration **suit le standard de SuiteCRM : pas de jeton de formulaire**,
+parce que son socle historique n'en fournit pas et que ses propres écrans d'administration
+n'en ont pas. Le choix est assumé plutôt que subi : la page ne manipule que des codes
+couleur, et le pire scénario d'un formulaire forgé est qu'on fasse changer les couleurs du
+CRM à un administrateur à son insu. Aucune donnée, aucun droit. Si cette extension devait
+un jour écrire autre chose que des couleurs, **c'est la première chose à revoir**.
+
+Ce qu'elle refuse compte autant que ce qu'elle accepte : une valeur qui n'est pas un code
+couleur à six chiffres est **écartée, pas corrigée** — le réglage retombe alors sur la
+couleur d'origine, qui est toujours lisible. Et tout ce qui ressort dans la page est
+échappé, y compris une valeur hostile arrivée en base par un autre chemin.
 
 ## La question de la maintenance
 
@@ -64,8 +101,13 @@ il faut vérifier que le rail tient toujours — c'est le prix de ce thème, et 
 | `legacy/include/custom-theme/Palette.php` | les couleurs : celles choisies, celles déduites |
 | `legacy/include/custom-theme/Theme.php` | ce que l'interface reçoit (variables, accents, rail) |
 | `legacy/include/custom-theme/ConfigTable.php`, `Settings.php` | les couleurs en base (table `config`) |
-| `legacy/include/custom-theme/ServeTheme.php`, `Reply.php` | le point d'entrée |
-| `legacy/Extension/…` | déclaration du point d'entrée |
+| `legacy/include/custom-theme/ServeTheme.php`, `Reply.php` | le point d'entrée qui sert les couleurs |
+| `legacy/include/custom-theme/Navigation.php` | le plafond du nombre de modules affichés |
+| `config/services/navigation-tab-limits.yaml` | le même plafond, côté SuiteCRM 8 |
+| `database/install.php` | lève le plafond à l'installation |
+| `legacy/include/custom-theme/AdminForm.php` | ce que le formulaire accepte, et son dessin |
+| `legacy/include/custom-theme/AdminPage.php` | la page d'administration côté SuiteCRM |
+| `legacy/Extension/…` | déclaration des points d'entrée, de l'entrée d'administration et de ses libellés |
 | `config/extension.php` | déclaration du module Angular à SuiteCRM 8 |
 | `app/` → `public/` | le module Angular et sa version construite (`make front@build`) |
 

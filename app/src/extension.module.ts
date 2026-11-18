@@ -1,6 +1,5 @@
 import {NgModule} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {provideHttpClient, withInterceptorsFromDi} from '@angular/common/http';
 
 // custom-theme: loaded by SuiteCRM 8 when the interface starts (module
 // federation, declared by config/extension.php). It changes the frame around
@@ -18,6 +17,9 @@ import {provideHttpClient, withInterceptorsFromDi} from '@angular/common/http';
 
 const THEME_URL = 'legacy/index.php?entryPoint=customTheme';
 const ICON_URL = (module: string): string => `legacy/themes/suite8/images/${module}.svg`;
+// The client's logo, through SuiteCRM's own door: it serves the one uploaded
+// in Administration, and its default when none was.
+const LOGO_URL = 'legacy/index.php?entryPoint=getImage&themeName=suite8&imageName=company_logo.png';
 
 // The grey SuiteCRM paints its module icons with. Replaced by the module's
 // accent; the white inner detail is kept, which is what gives the icons their
@@ -25,6 +27,7 @@ const ICON_URL = (module: string): string => `legacy/themes/suite8/images/${modu
 const ICON_GREY = /#778591/gi;
 
 const STYLE_ID = 'custom-theme-style';
+const ICON_STYLE_ID = 'custom-theme-icons';
 const MARK = 'data-custom-theme';
 
 interface Rail {
@@ -37,6 +40,55 @@ interface Payload {
     accents: Record<string, string>;
     rail: Rail;
 }
+
+/**
+ * Paints the icons from the stylesheet rather than by hand.
+ *
+ * Angular redraws the whole menu at every change of screen — barely one
+ * entry in thirty survives — so an icon added to an entry disappears with
+ * it and comes back a moment later, which flickers. Nothing in the markup
+ * names the module except the addresses of its submenu, and :has() can
+ * reach those: one rule per module, written once, and the icon is there the
+ * instant SuiteCRM draws the entry.
+ */
+const paintIcons = async (accents: Record<string, string>): Promise<string[]> => {
+    const rules: string[] = [];
+    const painted: string[] = [];
+    for (const [module, accent] of Object.entries(accents)) {
+        const found = `nav.navbar li.top-nav:has(a[href*="return_module=${module}&"])`;
+        rules.push(`${found} a.top-nav-link { --ct-accent: ${accent}; }`);
+
+        const svg = await iconFor(module);
+        if (svg === null) {
+            continue;
+        }
+        const drawn = encodeURIComponent(svg.replace(ICON_GREY, accent))
+            .replace(/'/g, '%27')
+            .replace(/"/g, '%22');
+        rules.push(`${found} a.top-nav-link::after { background-image: url("data:image/svg+xml,${drawn}"); }`);
+        painted.push(module);
+    }
+
+    let sheet = document.getElementById(ICON_STYLE_ID);
+    if (sheet === null) {
+        sheet = document.createElement('style');
+        sheet.id = ICON_STYLE_ID;
+        document.head.append(sheet);
+    }
+    sheet.textContent = rules.join('\n');
+
+    return painted;
+};
+
+/**
+ * The login screen: no menu, so no rail — and nothing else around the form
+ * either. The logo already stands in the middle of it, so SuiteCRM's bar and
+ * its footer have nothing to say there.
+ */
+const bareScreen = (): string => `
+nav.navbar, scrm-footer-ui, footer { display: none !important; }
+body { background: var(--st-surface, #f1f5f9); }
+`;
 
 /** The stylesheet of the theme, created once and rewritten when needed. */
 const styleSheet = (): HTMLStyleElement => {
@@ -57,57 +109,324 @@ const styleSheet = (): HTMLStyleElement => {
  * class names, which are not.
  */
 const layout = (rail: Rail): string => `
-:root { --ct-rail: ${rail.width}px; --ct-rail-open: ${rail.open}px; }
+/* The rail is wider than a row is tall: an icon centred in it then keeps
+   clear of the three dots standing against the right edge. */
+:root {
+  --ct-row: ${rail.width}px;
+  --ct-rail: ${rail.width + 10}px;
+  --ct-rail-open: ${rail.open}px;
+  --ct-bar: ${rail.width}px;
+}
 
+/* The bar leaves the flow and stands against the left edge. !important all
+   the way: SuiteCRM's own rules are more specific than ours. */
 nav.navbar {
-  position: fixed; top: 0; left: 0; bottom: 0;
-  width: var(--ct-rail); height: 100vh;
-  flex-direction: column; align-items: stretch; justify-content: flex-start;
-  flex-wrap: nowrap; padding: 0; gap: 0;
-  background: var(--st-rail, #fff);
+  position: fixed !important; top: var(--ct-bar) !important; left: 0 !important; bottom: 0 !important;
+  width: var(--ct-rail) !important; height: calc(100vh - var(--ct-bar)) !important;
+  flex-direction: column !important; align-items: stretch !important;
+  justify-content: flex-start !important; flex-wrap: nowrap !important;
+  padding: 0 !important; overflow: visible !important;
+  background: var(--st-rail, #fff) !important;
   border-right: 1px solid rgba(15, 23, 42, .08);
-  z-index: 1040; overflow: visible;
-  transition: width .15s ease;
+  z-index: 1040; transition: width .15s ease;
 }
-nav.navbar:hover { width: var(--ct-rail-open); box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
+/* The rail opens on a click, never on the pointer passing by: a menu that
+   unfolds by itself gets in the way of the screen behind it. */
 
-nav.navbar scrm-menu-items-list ul {
-  flex-direction: column; align-items: stretch; width: 100%; margin: 0; padding: 0;
+/* Every module is in the rail, so the list is longer than the screen and the
+   rail scrolls. A box that scrolls clips what sticks out of it, which is why
+   the submenus are taken out of the flow below. */
+nav.navbar { overflow-y: auto !important; overflow-x: hidden !important; }
+/* Closed, the rail is 56 pixels wide: a scrollbar would take a fifth of them
+   and crush the icons against the edge. It scrolls with the wheel instead,
+   and shows a thin bar once there is room for it. */
+html:not([${MARK}-pinned]) nav.navbar { scrollbar-width: none; -ms-overflow-style: none; }
+html:not([${MARK}-pinned]) nav.navbar::-webkit-scrollbar { width: 0; height: 0; }
+html[${MARK}-pinned] nav.navbar { scrollbar-width: thin; }
+
+/* Closed, an entry is its icon alone, centred: the label is taken out of the
+   flow rather than merely faded, or the centring would still count it. */
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-item],
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-pin] { padding: 0 !important; justify-content: center; }
+/* Closed, no name shows — and the rule reaches the entries SuiteCRM has
+   just redrawn, before this extension has dressed them: otherwise the names
+   flash across the rail at every change of screen. */
+html:not([${MARK}-pinned]) nav.navbar a.top-nav-link > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]),
+html:not([${MARK}-pinned]) nav.navbar a.home-nav-link > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+  display: none !important;
 }
-nav.navbar scrm-menu-items-list ul > li { width: 100%; }
-nav.navbar scrm-menu-items-list ul > li > * { width: 100%; }
 
-/* One row: the tinted icon, then the label, hidden while the rail is closed. */
-nav.navbar [${MARK}-item] {
-  display: flex; align-items: center; gap: 12px;
-  height: var(--ct-rail); padding: 0 ${(56 - 30) / 2}px;
-  white-space: nowrap; overflow: hidden;
+
+/* Pinned open: the rail keeps its full width and the content stands beside
+   it rather than under it, so nothing is hidden. */
+html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
+html[${MARK}-pinned] app-root { padding-left: var(--ct-rail-open); }
+
+[${MARK}-pin] {
+  flex: 0 0 auto; height: var(--ct-row); width: 100%;
+  display: flex; align-items: center; gap: 12px; padding: 0 13px;
+  border: 0; background: none; cursor: pointer; color: #64748b;
+  border-bottom: 1px solid rgba(15, 23, 42, .06);
+}
+[${MARK}-pin]:hover { background: rgba(15, 23, 42, .04); }
+[${MARK}-pin] span {
+  flex: 0 0 30px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; height: 30px;
+}
+[${MARK}-pin] i {
+  display: block; width: 18px; height: 2px; border-radius: 2px; background: currentColor;
+  transition: transform .15s ease, opacity .15s ease;
+}
+/* Open, the three lines fold into a cross. */
+html[${MARK}-pinned] [${MARK}-pin] i:first-child { transform: translateY(6px) rotate(45deg); }
+html[${MARK}-pinned] [${MARK}-pin] i:nth-child(2) { opacity: 0; }
+html[${MARK}-pinned] [${MARK}-pin] i:last-child { transform: translateY(-6px) rotate(-45deg); }
+
+nav.navbar .navbar-collapse { display: block !important; width: 100% !important; flex-basis: auto !important; }
+nav.navbar ul.navbar-nav { flex-direction: column !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+nav.navbar li.top-nav, nav.navbar li.nav-item { width: 100% !important; position: relative !important; }
+nav.navbar .menu-item-wrapper { width: 100% !important; }
+
+/* One row per module: the tinted icon, then the label, which only shows
+   once the rail is open. */
+nav.navbar a.top-nav-link, nav.navbar a.home-nav-link {
+  display: flex !important; align-items: center; gap: 12px;
+  height: var(--ct-row); padding: 0 13px; margin: 0 !important;
+  white-space: nowrap; overflow: hidden; position: relative;
+}
+/* Bootstrap draws a caret on ::after; that space becomes the icon instead,
+   painted by the rules written for each module. */
+nav.navbar a.top-nav-link::after {
+  content: '' !important; display: block; order: -1; flex: 0 0 30px;
+  width: 30px; height: 30px; border: 0 !important; margin: 0 !important;
+  background-repeat: no-repeat; background-position: center; background-size: 30px 30px;
+}
+/* A module SuiteCRM ships no icon for keeps the letter tile added to it. */
+nav.navbar a.top-nav-link:has([${MARK}-letter])::after { display: none; }
+
+nav.navbar a.top-nav-link::before, nav.navbar a.home-nav-link::before {
+  content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%;
+  background: var(--ct-accent, transparent);
 }
 nav.navbar [${MARK}-icon] { flex: 0 0 30px; width: 30px; height: 30px; display: block; }
 nav.navbar [${MARK}-icon] svg { width: 30px; height: 30px; display: block; }
+
+/* Home keeps the icon SuiteCRM draws for it, which is white and invisible on
+   a light rail: it takes the entry's colour. */
+nav.navbar a.home-nav-link scrm-image svg,
+nav.navbar a.home-nav-link scrm-image svg * { fill: var(--ct-accent, #64748b) !important; }
+nav.navbar a.home-nav-link scrm-image { flex: 0 0 30px; display: flex; justify-content: center; }
 nav.navbar [${MARK}-letter] {
   flex: 0 0 30px; width: 30px; height: 30px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; color: #fff;
 }
-nav.navbar [${MARK}-label] { opacity: 0; transition: opacity .12s ease; }
-nav.navbar:hover [${MARK}-label] { opacity: 1; }
-
-/* The accent, as on the reference: a strip on the edge of every row, filled
-   in when the module is the one being looked at. */
-nav.navbar [${MARK}-item]::before {
-  content: ''; position: absolute; left: 0; width: 3px; height: var(--ct-rail);
-  background: var(--ct-accent, transparent);
+nav.navbar [${MARK}-item], nav.navbar [${MARK}-item]:hover {
+  color: #334155 !important; text-decoration: none !important;
 }
-nav.navbar [${MARK}-item] { position: relative; }
+/* The entry stays where it is under the pointer: SuiteCRM's own hover adds a
+   margin at the top, which makes the row jump away. It grows instead. */
+nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .06); }
+nav.navbar [${MARK}-item]:hover [${MARK}-icon],
+nav.navbar [${MARK}-item]:hover [${MARK}-letter] { transform: scale(1.14); }
+nav.navbar [${MARK}-item]:hover > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) { font-weight: 600; }
+nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { transition: transform .12s ease; }
 
-/* What the rail has no room for. The search keeps its own place in the
-   screens of SuiteCRM. */
-nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none; }
+/* Three dots on the right say an entry has a submenu, in place of the caret
+   wiped when the entry is dressed. They show once the rail is open. */
+/* The name of a module, shown beside its icon while the rail is closed.
+   The browser's own tooltip is slow to appear and cannot be styled. */
+[${MARK}-tip] {
+  position: fixed; z-index: 1060; transform: translateY(-50%);
+  background: #1d283a; color: #fff; font-size: 12px; line-height: 1;
+  padding: 7px 10px; border-radius: 6px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .1s ease;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .25);
+}
+[${MARK}-tip][${MARK}-shown] { opacity: 1; }
+html[${MARK}-pinned] [${MARK}-tip] { display: none; }
 
-/* The content, moved aside by the closed width: the rail opens over it, so
-   nothing reflows when it does. */
-body > app-root > *:not(scrm-navbar-ui) { margin-left: var(--ct-rail); }
+/* The dots take the whole height of the row: a target of a few pixels is
+   one you fight with. They show on the row's hover even when the rail is
+   closed, where they stand in a column for want of width. */
+nav.navbar [${MARK}-more] {
+  position: absolute; right: 0; top: 0; height: 100%; width: 18px;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  margin: 0; opacity: 0; transition: opacity .12s ease; cursor: pointer;
+}
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-more] { flex-direction: column; width: 14px; }
+html[${MARK}-pinned] nav.navbar [${MARK}-more] { right: 6px; width: 18px; opacity: .45; }
+nav.navbar [${MARK}-item]:hover [${MARK}-more] { opacity: .95; }
+nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; flex: 0 0 3px; }
+/* The label of an entry: Angular's own span for a module, ours for Home.
+   It is never replaced, only dressed around — Angular keeps it right when
+   it reuses an entry for another module. */
+nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+  font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease;
+}
+/* The icon is added at the end of the link, so that Angular's own label is
+   left untouched: it is put back in front here. */
+nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { order: -1; }
+html[${MARK}-pinned] nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+  opacity: 1;
+}
+
+/* The submenu of a module opens beside the rail. Fixed rather than absolute:
+   the rail scrolls, and an absolute submenu would be cut off at its edge. The
+   code sets top and left as the pointer arrives. */
+nav.navbar .dropdown-menu.submenu {
+  display: none !important;
+  position: fixed !important; left: var(--ct-rail) !important; margin: 0 !important;
+  border: 1px solid rgba(15, 23, 42, .1); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+}
+html[${MARK}-pinned] nav.navbar .dropdown-menu.submenu { left: var(--ct-rail-open) !important; }
+/* Opened by the three dots alone, never by the row: clicking a module should
+   go to the module, not unfold a menu under the pointer. */
+nav.navbar .dropdown-menu.submenu[${MARK}-open] { display: block !important; }
+
+/* The submenu says which module it belongs to: opened from the dots of a
+   closed rail, nothing else would tell. */
+nav.navbar .dropdown-menu.submenu::before {
+  content: attr(${MARK}-of); display: block;
+  padding: 10px 16px 7px; font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: #94a3b8;
+}
+nav.navbar .dropdown-menu.submenu:not([${MARK}-of])::before { display: none; }
+
+/* SuiteCRM keeps a folded copy of the menu for the modules that do not fit
+   its horizontal bar. The limit is lifted (config/services), so every module
+   is a full entry with its submenu and that copy only repeats them. */
+nav.navbar scrm-menu-items-list { display: none !important; }
+
+/* What the rail has no room for. */
+/* The bar across the top carries what is not a module and what the rail is
+   too narrow for: the search, the quick actions, the user's menu. */
+[${MARK}-bar] {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--ct-bar);
+  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  background: linear-gradient(to right top, var(--st-header-from, #0369a0), var(--st-header-to, #3abff8));
+  color: #fff; z-index: 1050;
+}
+[${MARK}-bar] [${MARK}-gap] { flex: 1 1 auto; }
+
+/* The client's logo, served by SuiteCRM itself: the one uploaded in
+   Administration when there is one. */
+[${MARK}-bar] [${MARK}-logo] {
+  flex: 0 0 auto; display: flex; align-items: center;
+  width: calc(var(--ct-rail) * 3); max-width: 190px;
+}
+[${MARK}-bar] [${MARK}-logo] img { max-height: 34px; max-width: 100%; object-fit: contain; display: block; }
+
+/* The search sits in the middle of the window whatever stands on either
+   side of it, so it is taken out of the row rather than squeezed between. */
+[${MARK}-bar] scrm-search-bar {
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+
+/* The controls keep their behaviour; only their colours change, so they can
+   be read on the gradient. */
+/* The quick actions and the user's menu were stacked in a column, as the
+   rail asked of them: in a bar they stand in a row. */
+[${MARK}-bar] .action-group, [${MARK}-bar] .global-links {
+  display: flex !important; align-items: center; gap: 2px; height: 40px;
+}
+/* Each control gets the same square, so they read as one row of buttons
+   rather than a line of odds and ends. */
+[${MARK}-bar] .action-group > div:not(.dropdown-menu),
+[${MARK}-bar] .global-links > *:not(.dropdown-menu) {
+  flex: 0 0 40px !important; width: 40px !important; height: 40px;
+  display: flex !important; align-items: center; justify-content: center;
+}
+[${MARK}-bar] .action-link, [${MARK}-bar] .dropdown-toggle {
+  width: 40px; height: 40px !important; display: flex !important; align-items: center;
+  justify-content: center; padding: 0 !important;
+}
+/* The icons sat on the text baseline inside their wrapper, which left them
+   hanging at the bottom of the bar however well the wrapper was centred. */
+[${MARK}-bar] scrm-image, [${MARK}-bar] .action-btn-icon, [${MARK}-bar] .sicon {
+  display: flex !important; align-items: center; justify-content: center; line-height: 0;
+}
+[${MARK}-bar] svg { display: block; }
+/* SuiteCRM leaves a margin to the right of an icon, for the words that
+   usually follow it. Alone in its square, that margin pushes it off centre. */
+[${MARK}-bar] svg { margin: 0 !important; }
+[${MARK}-bar] .sicon, [${MARK}-bar] svg-icon { width: auto !important; }
+/* The shortcut to the search on a narrow screen: the bar carries the search
+   itself, and an empty square would sit in the row. */
+[${MARK}-bar] .search-mobile-view { display: none !important; }
+[${MARK}-bar] .action-group > div:has(.search-mobile-view) { display: none !important; }
+[${MARK}-bar] ul.navbar-nav {
+  flex-direction: row !important; align-items: center; height: 40px;
+  margin: 0 !important; padding: 0 !important;
+}
+[${MARK}-bar] li { display: flex; align-items: center; }
+/* Their own menus hang under the bar, not beside it — and they keep their
+   own layout: the rules that put the controls in a row must not reach
+   inside them, or the user's menu comes out as a strip across the bar. */
+[${MARK}-bar] .dropdown-menu {
+  position: absolute !important; top: 100% !important;
+  flex-direction: column !important; align-items: stretch !important;
+  min-width: 190px !important; width: auto !important; height: auto !important;
+  /* SuiteCRM pushes the notifications panel down by forty-two pixels of its
+     own, and nudges the others up by five: they all hang from the same line
+     here. */
+  transform: none !important; margin: 0 !important;
+}
+[${MARK}-bar] .dropdown-menu > *, [${MARK}-bar] .dropdown-menu ul, [${MARK}-bar] .dropdown-menu li {
+  width: 100% !important; height: auto !important; flex: 0 0 auto !important;
+}
+[${MARK}-bar] .dropdown-menu ul { flex-direction: column !important; align-items: stretch !important; }
+[${MARK}-bar] .dropdown-menu li { display: block !important; }
+[${MARK}-bar] .dropdown-menu a {
+  width: auto !important; height: auto !important;
+  justify-content: flex-start !important; padding: 8px 16px !important;
+}
+/* Notifications and the like are plain text in the menu rather than links,
+   and would sit against its edges. */
+[${MARK}-bar] .dropdown-menu { padding: 6px 0 !important; }
+[${MARK}-bar] .dropdown-menu .dropdown-item { padding-left: 16px !important; padding-right: 16px !important; }
+
+[${MARK}-bar] a, [${MARK}-bar] button, [${MARK}-bar] .action-link { color: #fff !important; }
+[${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
+[${MARK}-bar] .dropdown-menu, [${MARK}-bar] .dropdown-menu a { color: #1d283a !important; }
+[${MARK}-bar] .dropdown-menu svg, [${MARK}-bar] .dropdown-menu svg * { fill: #64748b; }
+/* The search comes from a bar of its own, two lines tall and carrying
+   SuiteCRM's grey. Here it is a single pill, the height of the bandeau's
+   row: field and button side by side, nothing wrapping. */
+[${MARK}-bar] scrm-search-bar { display: flex !important; align-items: center; height: 36px; }
+[${MARK}-bar] form.search-bar { display: flex; align-items: center; height: 36px; margin: 0; }
+[${MARK}-bar] .input-group {
+  flex-wrap: nowrap !important; width: auto !important; height: 36px !important;
+  background: rgba(255, 255, 255, .16) !important; border-radius: 8px; overflow: hidden;
+}
+[${MARK}-bar] .search-bar-term {
+  background: none !important; border: 0 !important; box-shadow: none !important;
+  color: #fff; width: 220px !important; min-width: 0 !important;
+  padding: 0 14px 0 18px !important;
+  /* The field was four pixels taller than the pill and hung out of its
+     bottom, which read as a word sitting too low. */
+  height: 36px !important; min-height: 0 !important; max-height: 36px !important;
+  line-height: 36px !important; align-self: center;
+}
+[${MARK}-bar] .search-bar-term::placeholder { color: rgba(255, 255, 255, .75); }
+[${MARK}-bar] .input-group-append { height: 36px; }
+[${MARK}-bar] .search-button {
+  height: 36px !important; border: 0 !important; background: none !important;
+  display: flex; align-items: center; padding: 0 10px;
+}
+
+/* The rail has no room for these: they live in the bar now. */
+nav.navbar .navbar-toggler, nav.navbar .search-mobile-view { display: none !important; }
+
+/* The content moves aside by the closed width: the rail opens over it, so
+   nothing reflows when it does. Padding on app-root rather than a margin on
+   each child, because SuiteCRM adds children as it goes. */
+app-root { display: block; padding-left: var(--ct-rail); padding-top: var(--ct-bar); }
+/* SuiteCRM leaves room at the top of a view for the bar it used to carry
+   there. The bandeau holds that room now, so the title of a screen no longer
+   needs another forty-eight pixels above it. */
+app-root .list-view, app-root .record-view, app-root iframe { padding-top: 8px !important; }
 body { background: var(--st-surface, #f1f5f9); }
 `;
 
@@ -128,16 +447,264 @@ const iconFor = (module: string): Promise<string | null> => {
     return asked;
 };
 
-/** The module a menu entry points at, as SuiteCRM's own list spells it. */
-const moduleOf = (item: Element, accents: Record<string, string>): string | null => {
-    const link = item.querySelector('a[href]') as HTMLAnchorElement | null;
-    const href = link?.getAttribute('href') ?? '';
-    const asked = href.split(/[#/?]/).filter(Boolean).pop() ?? '';
-    if (!asked) {
-        return null;
+/**
+ * What the bar across the top carries, in the order it shows them. These are
+ * SuiteCRM's own elements: they are moved, never copied, so they keep their
+ * behaviour and their bindings.
+ */
+const BAR_PARTS = [
+    'scrm-search-bar',
+    `[${MARK}-gap]`,
+    'div.action-group.navbar-action-group',
+    'div.global-links',
+];
+
+/** The bar across the top, created once. */
+const topBar = (): HTMLElement => {
+    const known = document.querySelector<HTMLElement>(`[${MARK}-bar]`);
+    if (known) {
+        return known;
     }
 
-    return Object.keys(accents).find(name => name.toLowerCase() === asked.toLowerCase()) ?? null;
+    const bar = document.createElement('header');
+    bar.setAttribute(`${MARK}-bar`, '');
+
+    const logo = document.createElement('span');
+    logo.setAttribute(`${MARK}-logo`, '');
+    const image = document.createElement('img');
+    image.src = LOGO_URL;
+    image.alt = '';
+    // An instance without a logo of its own should show nothing rather than
+    // a broken image.
+    image.addEventListener('error', () => logo.remove());
+    logo.append(image);
+    bar.append(logo);
+
+    const gap = document.createElement('span');
+    gap.setAttribute(`${MARK}-gap`, '');
+    bar.append(gap);
+    document.body.prepend(bar);
+
+    return bar;
+};
+
+/**
+ * Puts the controls that are not modules into the bar. Angular redraws the
+ * navbar as the menu changes, so a moved control can come back where it was:
+ * when any of them has strayed, all are set down again, in order.
+ */
+const fillBar = (): void => {
+    const bar = topBar();
+    const strayed = BAR_PARTS.some(selector => {
+        const part = document.querySelector(selector);
+
+        return part !== null && part.parentElement !== bar;
+    });
+    if (!strayed) {
+        return;
+    }
+
+    for (const selector of BAR_PARTS) {
+        const part = document.querySelector(selector);
+        if (part) {
+            bar.append(part);
+        }
+    }
+};
+
+/**
+ * Opens a module's submenu beside its entry, and only from the three dots:
+ * clicking a module should go to the module, not unfold a menu under the
+ * pointer. The rail scrolls, so the submenu is fixed rather than absolute,
+ * and only the code knows how far down the entry has ended up.
+ *
+ * One listener on the document rather than one per entry: Angular replaces
+ * the entries as the menu changes, and a listener set on an entry goes with
+ * it.
+ */
+const followThePointer = (rail: HTMLElement): void => {
+    if (rail.hasAttribute(`${MARK}-follows`)) {
+        return;
+    }
+    rail.setAttribute(`${MARK}-follows`, '');
+
+    let closing = 0;
+    const closeAll = (): void => {
+        for (const open of Array.from(document.querySelectorAll(`[${MARK}-open]`))) {
+            open.removeAttribute(`${MARK}-open`);
+        }
+    };
+
+    document.addEventListener('mouseover', event => {
+        const over = event.target;
+        if (!(over instanceof Element)) {
+            return;
+        }
+
+        // The name of the entry under the pointer, while the rail is closed.
+        const tip = tooltip();
+        const row = over.closest<HTMLElement>(`[${MARK}-item]`);
+        const name = row?.getAttribute(`${MARK}-name`) ?? '';
+        if (row !== null && name !== '' && !document.documentElement.hasAttribute(`${MARK}-pinned`)) {
+            const place = row.getBoundingClientRect();
+            tip.textContent = name;
+            tip.style.top = `${Math.round(place.top + place.height / 2)}px`;
+            tip.style.left = `${Math.round(place.right + 8)}px`;
+            tip.setAttribute(`${MARK}-shown`, '');
+        } else {
+            tip.removeAttribute(`${MARK}-shown`);
+        }
+
+        // Walking onto the submenu keeps it open: the pointer has to cross
+        // the gap between the dots and it.
+        if (over.closest('.dropdown-menu.submenu')) {
+            window.clearTimeout(closing);
+
+            return;
+        }
+
+        const dots = over.closest(`[${MARK}-more]`);
+        if (!dots) {
+            closing = window.setTimeout(closeAll, 250);
+
+            return;
+        }
+
+        window.clearTimeout(closing);
+        const entry = dots.closest('li.top-nav');
+        const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
+        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
+        if (!link || !submenu) {
+            return;
+        }
+
+        closeAll();
+        submenu.setAttribute(`${MARK}-open`, '');
+        const box = link.getBoundingClientRect();
+        // Against the bottom of the window the submenu rises rather than
+        // running off the screen.
+        const top = Math.min(box.top, Math.max(0, window.innerHeight - submenu.offsetHeight - 8));
+        submenu.style.top = `${top}px`;
+    });
+};
+
+/** The box that shows a module's name beside its icon, created once. */
+const tooltip = (): HTMLElement => {
+    const known = document.querySelector<HTMLElement>(`[${MARK}-tip]`);
+    if (known !== null) {
+        return known;
+    }
+
+    const tip = document.createElement('div');
+    tip.setAttribute(`${MARK}-tip`, '');
+    document.body.append(tip);
+
+    return tip;
+};
+
+/** The three dots that say an entry opens a submenu. */
+const moreDots = (): HTMLElement => {
+    const dots = document.createElement('span');
+    dots.setAttribute(`${MARK}-more`, '');
+    dots.setAttribute('aria-hidden', 'true');
+    for (let drawn = 0; drawn < 3; drawn++) {
+        dots.append(document.createElement('i'));
+    }
+
+    return dots;
+};
+
+/**
+ * Waits for SuiteCRM to have drawn its menu, however long that takes: before
+ * it, there is the login screen, and a person takes the time they take.
+ */
+const menuDrawn = async (): Promise<void> => {
+    while (document.querySelector('nav.navbar li.top-nav a.top-nav-link') === null) {
+        await new Promise(resolve => window.setTimeout(resolve, 300));
+    }
+};
+
+/**
+ * Whether the rail is held open. Kept per browser, because it is a habit of
+ * the person sitting there, not a setting of the instance.
+ */
+const PIN_KEY = 'custom-theme.pinned';
+
+const readPin = (): boolean => {
+    try {
+        return window.localStorage.getItem(PIN_KEY) === 'yes';
+    } catch {
+        return false;
+    }
+};
+
+const writePin = (pinned: boolean): void => {
+    try {
+        window.localStorage.setItem(PIN_KEY, pinned ? 'yes' : 'no');
+    } catch {
+        // A browser that refuses storage still gets a working rail, it just
+        // forgets the choice between visits.
+    }
+};
+
+const applyPin = (pinned: boolean): void => {
+    if (pinned) {
+        document.documentElement.setAttribute(`${MARK}-pinned`, '');
+    } else {
+        document.documentElement.removeAttribute(`${MARK}-pinned`);
+    }
+};
+
+/** The button at the top of the rail: three lines, a cross once open. */
+const pinButton = (): HTMLElement => {
+    const button = document.createElement('button');
+    button.setAttribute(`${MARK}-pin`, '');
+    button.type = 'button';
+
+    const lines = document.createElement('span');
+    for (let drawn = 0; drawn < 3; drawn++) {
+        lines.append(document.createElement('i'));
+    }
+    button.append(lines);
+
+    const says = (pinned: boolean): void => {
+        const words = pinned ? 'Replier le menu' : 'Ouvrir le menu';
+        button.title = words;
+        button.setAttribute('aria-label', words);
+    };
+    says(document.documentElement.hasAttribute(`${MARK}-pinned`));
+
+    button.addEventListener('click', () => {
+        const pinned = !document.documentElement.hasAttribute(`${MARK}-pinned`);
+        applyPin(pinned);
+        writePin(pinned);
+        says(pinned);
+    });
+
+    return button;
+};
+
+/**
+ * The module a menu entry points at, spelled as SuiteCRM spells it. Read from
+ * the links of its submenu, which carry return_module=Accounts: the entry's
+ * own address only gives the lowercase route.
+ */
+const moduleOf = (link: Element, accents: Record<string, string>): string | null => {
+    const entry = link.closest('li.top-nav, li.nav-item') ?? link.parentElement;
+    const hrefs = entry ? Array.from(entry.querySelectorAll('a[href]')).map(a => a.getAttribute('href') ?? '') : [];
+    for (const href of hrefs) {
+        const named = /return_module=([A-Za-z0-9_]+)/.exec(href);
+        if (named) {
+            const match = Object.keys(accents).find(name => name.toLowerCase() === named[1].toLowerCase());
+            if (match) {
+                return match;
+            }
+        }
+    }
+
+    const own = (link.getAttribute('href') ?? '').split(/[#/?]/).filter(Boolean).pop() ?? '';
+
+    return own ? Object.keys(accents).find(name => name.toLowerCase() === own.toLowerCase()) ?? null : null;
 };
 
 /** A tile with the first letter, for a module SuiteCRM ships no icon for. */
@@ -153,7 +720,6 @@ const letterTile = (label: string, accent: string): HTMLElement => {
 @NgModule({
     declarations: [],
     imports: [CommonModule],
-    providers: [provideHttpClient(withInterceptorsFromDi())]
 })
 export class ExtensionModule {
     // SuiteCRM 8.10.2 creates the module (createNgModule) but never calls
@@ -175,51 +741,124 @@ export class ExtensionModule {
         for (const [name, value] of Object.entries(theme.variables ?? {})) {
             document.documentElement.style.setProperty(name, value);
         }
+        // The colours are set at once, so the login screen is themed too,
+        // and that screen is stripped of what it does not need. The rail
+        // waits for the menu: see menuDrawn.
+        styleSheet().textContent = bareScreen();
+        const painted = await paintIcons(theme.accents ?? {});
+        await menuDrawn();
+
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
+        applyPin(readPin());
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
         // decorate it without touching SuiteCRM's components.
-        const decorate = (): void => {
-            void this.decorate(theme.accents ?? {});
+        //
+        // Watching costs care. Angular's first render fires mutations by the
+        // thousand, so the work is held back until they stop, and one pass
+        // never starts while another is still running: without that, hundreds
+        // of passes overlap inside Angular's own rendering.
+        let waiting = false;
+        let running = false;
+        const pass = async (): Promise<void> => {
+            if (running) {
+                return;
+            }
+            running = true;
+            try {
+                await this.decorate(theme.accents ?? {}, painted);
+            } finally {
+                running = false;
+            }
         };
-        decorate();
-        new MutationObserver(decorate).observe(document.body, {childList: true, subtree: true});
+        const later = (): void => {
+            if (waiting) {
+                return;
+            }
+            waiting = true;
+            window.setTimeout(() => {
+                waiting = false;
+                void pass();
+            }, 50);
+        };
+
+        later();
+        new MutationObserver(later).observe(document.body, {childList: true, subtree: true});
     }
 
-    private async decorate(accents: Record<string, string>): Promise<void> {
-        const items = document.querySelectorAll('nav.navbar scrm-menu-items-list li');
-        for (const item of Array.from(items)) {
-            const link = item.querySelector('a') as HTMLElement | null;
-            if (!link || link.hasAttribute(`${MARK}-item`)) {
-                continue;
-            }
-            const label = (link.textContent ?? '').trim();
-            if (!label) {
+    private async decorate(accents: Record<string, string>, painted: string[]): Promise<void> {
+        // The modules sit in li.top-nav, Home in the separate component next
+        // to them. The link to dress is the one at the top of the entry, not
+        // those of the submenu underneath.
+        fillBar();
+
+        const bar = document.querySelector<HTMLElement>('nav.navbar');
+        if (bar) {
+            followThePointer(bar);
+        }
+        if (bar && !bar.querySelector(`[${MARK}-pin]`)) {
+            bar.prepend(pinButton());
+        }
+
+        const entries = document.querySelectorAll(
+            'nav.navbar li.top-nav a.top-nav-link, nav.navbar a.home-nav-link'
+        );
+        for (const link of Array.from(entries) as HTMLElement[]) {
+            const home = link.matches('a.home-nav-link');
+            const module = home ? 'Home' : moduleOf(link, accents);
+
+            // Angular reuses the same elements for other modules as the menu
+            // changes, so an entry dressed once can later point elsewhere.
+            // The module it stands for is written on it and checked each
+            // pass: unchanged, there is nothing to do.
+            const known = link.getAttribute(`${MARK}-module`);
+            if (known === (module ?? '')) {
                 continue;
             }
 
-            const module = moduleOf(item, accents);
-            const accent = module ? accents[module] : '#94a3b8';
+            const label = home ? 'Accueil' : (link.textContent ?? '').trim();
+            if (!home && !label) {
+                continue;
+            }
+
+            const accent = (module !== null && accents[module] !== undefined) ? accents[module] : '#64748b';
+            link.setAttribute(`${MARK}-module`, module ?? '');
             link.setAttribute(`${MARK}-item`, '');
+            // Closed, the rail shows icons alone: the name is kept here for
+            // the tooltip drawn beside it.
+            link.setAttribute(`${MARK}-name`, label);
+            link.setAttribute('aria-label', label);
             link.style.setProperty('--ct-accent', accent);
 
-            const text = document.createElement('span');
-            text.setAttribute(`${MARK}-label`, '');
-            text.textContent = label;
-
-            const svg = module ? await iconFor(module) : null;
-            let mark: HTMLElement;
-            if (svg) {
-                mark = document.createElement('span');
-                mark.setAttribute(`${MARK}-icon`, '');
-                mark.innerHTML = svg.replace(ICON_GREY, accent);
-            } else {
-                mark = letterTile(label, accent);
+            // Only what this extension added is taken away: the label is
+            // Angular's own and it keeps it up to date by itself.
+            const ours = `[${MARK}-icon], [${MARK}-letter], [${MARK}-more], [${MARK}-label]`;
+            for (const past of Array.from(link.querySelectorAll(ours))) {
+                past.remove();
             }
 
-            link.textContent = '';
-            link.append(mark, text);
+            if (home) {
+                // Home carries an icon and no words at all, so it is given
+                // its name; the stylesheet colours the icon SuiteCRM drew.
+                const text = document.createElement('span');
+                text.setAttribute(`${MARK}-label`, '');
+                text.textContent = label;
+                link.append(text);
+            } else {
+                // The icon itself is painted by the stylesheet, so it is
+                // there the instant SuiteCRM draws the entry. Only a module
+                // without an icon still needs a tile added to it.
+                if (module === null || !painted.includes(module)) {
+                    link.append(letterTile(label, accent));
+                }
+            }
+
+            const submenu = link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu');
+            if (submenu) {
+                submenu.setAttribute(`${MARK}-of`, label);
+                link.append(moreDots());
+            }
         }
     }
 }

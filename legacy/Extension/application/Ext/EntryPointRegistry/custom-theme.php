@@ -10,3 +10,11 @@ $entry_point_registry['customTheme'] = [
     'file' => 'custom/include/custom-theme/ServeTheme.php',
     'auth' => false,
 ];
+
+// The screen where an administrator chooses those colours. Behind the login
+// (auth true), and the page itself turns away anyone who is not an
+// administrator.
+$entry_point_registry['customThemeAdmin'] = [
+    'file' => 'custom/include/custom-theme/AdminPage.php',
+    'auth' => true,
+];
