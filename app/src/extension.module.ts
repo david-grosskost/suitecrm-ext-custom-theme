@@ -72,6 +72,11 @@ nav.navbar {
 }
 nav.navbar:hover { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
 
+/* Every module is in the rail, so the list is longer than the screen and the
+   rail scrolls. A box that scrolls clips what sticks out of it, which is why
+   the submenus are taken out of the flow below. */
+nav.navbar { overflow-y: auto !important; overflow-x: hidden !important; scrollbar-width: thin; }
+
 /* Pinned open: the rail keeps its full width and the content stands beside
    it rather than under it, so nothing is hidden. */
 html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-shadow: none; }
@@ -123,12 +128,26 @@ nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .04); }
 nav.navbar [${MARK}-label] { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
 nav.navbar:hover [${MARK}-label] { opacity: 1; }
 
-/* The submenu of a module opens to the right of the rail, not under it. */
+/* The submenu of a module opens beside the rail. Fixed rather than absolute:
+   the rail scrolls, and an absolute submenu would be cut off at its edge. The
+   code sets top and left as the pointer arrives. */
 nav.navbar .dropdown-menu.submenu {
-  position: absolute !important; left: 100% !important; top: 0 !important;
-  margin: 0 !important; border: 1px solid rgba(15, 23, 42, .1); border-radius: 8px;
+  position: fixed !important; left: var(--ct-rail) !important; margin: 0 !important;
+  border: 1px solid rgba(15, 23, 42, .1); border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
 }
+
+/* SuiteCRM folds the modules that do not fit its horizontal bar into an
+   "Options" menu. A column has room for all of them, so the fold is undone:
+   the menu becomes part of the rail and its own entry disappears. */
+nav.navbar ul.nav-collapsed-items > li.top-nav > a.dropdown-toggle { display: none !important; }
+nav.navbar .dropdown-menu.more-menu {
+  position: static !important; display: block !important; float: none !important;
+  width: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important;
+  border: 0 !important; box-shadow: none !important; background: none !important;
+  transform: none !important;
+}
+nav.navbar .dropdown-menu.more-menu .nav-item { width: 100% !important; }
 
 /* What the rail has no room for. */
 nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none !important; }
@@ -155,6 +174,21 @@ const iconFor = (module: string): Promise<string | null> => {
     icons.set(module, asked);
 
     return asked;
+};
+
+/**
+ * Places a module's submenu beside its entry. The rail scrolls, so the
+ * submenu is fixed rather than absolute, and nothing but the code knows how
+ * far down the entry has ended up.
+ */
+const placeSubmenu = (entry: HTMLElement): void => {
+    const submenu = entry.parentElement?.querySelector<HTMLElement>('.dropdown-menu.submenu');
+    if (!submenu) {
+        return;
+    }
+    const box = entry.getBoundingClientRect();
+    const room = window.innerHeight - box.top;
+    submenu.style.top = `${Math.max(0, box.top - Math.max(0, submenu.offsetHeight - room))}px`;
 };
 
 /**
@@ -237,7 +271,10 @@ const pinButton = (): HTMLElement => {
  * own address only gives the lowercase route.
  */
 const moduleOf = (link: Element, accents: Record<string, string>): string | null => {
-    const entry = link.closest('li.top-nav, li.nav-item') ?? link.parentElement;
+    // An entry freed from the overflow menu shares its li with every other
+    // one: only its own address says which module it is.
+    const alone = link.closest('.dropdown-menu.more-menu') !== null;
+    const entry = alone ? null : (link.closest('li.top-nav, li.nav-item') ?? link.parentElement);
     const hrefs = entry ? Array.from(entry.querySelectorAll('a[href]')).map(a => a.getAttribute('href') ?? '') : [];
     for (const href of hrefs) {
         const named = /return_module=([A-Za-z0-9_]+)/.exec(href);
@@ -349,7 +386,9 @@ export class ExtensionModule {
         }
 
         const entries = document.querySelectorAll(
-            'nav.navbar li.top-nav a.top-nav-link, nav.navbar a.home-nav-link'
+            'nav.navbar li.top-nav a.top-nav-link,'
+            + ' nav.navbar a.home-nav-link,'
+            + ' nav.navbar .dropdown-menu.more-menu a.nav-link'
         );
         for (const link of Array.from(entries) as HTMLElement[]) {
             if (link.hasAttribute(`${MARK}-item`)) {
@@ -388,6 +427,7 @@ export class ExtensionModule {
 
             link.textContent = '';
             link.append(mark, text);
+            link.addEventListener('mouseenter', () => placeSubmenu(link));
         }
     }
 }
