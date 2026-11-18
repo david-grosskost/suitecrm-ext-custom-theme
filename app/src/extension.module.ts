@@ -158,6 +158,25 @@ const iconFor = (module: string): Promise<string | null> => {
 };
 
 /**
+ * Waits for SuiteCRM to have drawn its menu, and says whether it did.
+ *
+ * Two reasons to wait. SuiteCRM measures the bar to decide how many modules
+ * fit, and it measures once: a rail of 56 px applied first means no module
+ * fits, and the menu stays empty for good. And the login screen has no menu
+ * at all, so it keeps SuiteCRM's own layout rather than an empty rail.
+ */
+const menuDrawn = async (): Promise<boolean> => {
+    for (let waited = 0; waited < 20000; waited += 200) {
+        if (document.querySelector('nav.navbar li.top-nav a.top-nav-link') !== null) {
+            return true;
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 200));
+    }
+
+    return false;
+};
+
+/**
  * Whether the rail is pinned open. Kept per browser, because it is a habit of
  * the person sitting there, not a setting of the instance.
  */
@@ -269,6 +288,12 @@ export class ExtensionModule {
         for (const [name, value] of Object.entries(theme.variables ?? {})) {
             document.documentElement.style.setProperty(name, value);
         }
+        // The colours are set at once, so the login screen is themed too.
+        // The rail waits for the menu: see menuDrawn.
+        if (!await menuDrawn()) {
+            return;
+        }
+
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
         applyPin(readPin());
 
