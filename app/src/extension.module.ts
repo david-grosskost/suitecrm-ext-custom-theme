@@ -94,6 +94,9 @@ html:not([${MARK}-pinned]) nav.navbar [${MARK}-pin] { padding: 0 !important; jus
 html:not([${MARK}-pinned]) nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
   display: none !important;
 }
+/* Closed, an entry that has a submenu leaves room on its right, so the icon
+   does not touch the dots — plain to see on a module shown as a letter. */
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-item]:has([${MARK}-more]) { padding: 0 12px 0 0 !important; }
 
 /* Pinned open: the rail keeps its full width and the content stands beside
    it rather than under it, so nothing is hidden. */
@@ -244,7 +247,8 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 }
 /* Each control gets the same square, so they read as one row of buttons
    rather than a line of odds and ends. */
-[${MARK}-bar] .action-group > div, [${MARK}-bar] .global-links > * {
+[${MARK}-bar] .action-group > div:not(.dropdown-menu),
+[${MARK}-bar] .global-links > *:not(.dropdown-menu) {
   flex: 0 0 40px !important; width: 40px !important; height: 40px;
   display: flex !important; align-items: center; justify-content: center;
 }
@@ -271,8 +275,23 @@ nav.navbar scrm-menu-items-list { display: none !important; }
   margin: 0 !important; padding: 0 !important;
 }
 [${MARK}-bar] li { display: flex; align-items: center; }
-/* Their own menus hang under the bar, not beside it. */
-[${MARK}-bar] .dropdown-menu { position: absolute !important; top: 100% !important; }
+/* Their own menus hang under the bar, not beside it — and they keep their
+   own layout: the rules that put the controls in a row must not reach
+   inside them, or the user's menu comes out as a strip across the bar. */
+[${MARK}-bar] .dropdown-menu {
+  position: absolute !important; top: 100% !important;
+  flex-direction: column !important; align-items: stretch !important;
+  min-width: 190px !important; width: auto !important; height: auto !important;
+}
+[${MARK}-bar] .dropdown-menu > *, [${MARK}-bar] .dropdown-menu ul, [${MARK}-bar] .dropdown-menu li {
+  width: 100% !important; height: auto !important; flex: 0 0 auto !important;
+}
+[${MARK}-bar] .dropdown-menu ul { flex-direction: column !important; align-items: stretch !important; }
+[${MARK}-bar] .dropdown-menu li { display: block !important; }
+[${MARK}-bar] .dropdown-menu a {
+  width: auto !important; height: auto !important;
+  justify-content: flex-start !important; padding: 8px 14px !important;
+}
 
 [${MARK}-bar] a, [${MARK}-bar] button, [${MARK}-bar] .action-link { color: #fff !important; }
 [${MARK}-bar] svg, [${MARK}-bar] svg * { fill: currentColor; }
