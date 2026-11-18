@@ -85,7 +85,6 @@ nav.navbar { overflow-y: auto !important; overflow-x: hidden !important; scrollb
    it rather than under it, so nothing is hidden. */
 html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-shadow: 0 0 24px rgba(15, 23, 42, .12); }
 html[${MARK}-pinned] app-root { padding-left: var(--ct-rail-open); }
-html[${MARK}-pinned] nav.navbar [${MARK}-label] { opacity: 1; }
 
 [${MARK}-pin] {
   flex: 0 0 auto; height: var(--ct-rail); width: 100%;
@@ -148,19 +147,29 @@ nav.navbar [${MARK}-item], nav.navbar [${MARK}-item]:hover {
 nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .06); }
 nav.navbar [${MARK}-item]:hover [${MARK}-icon],
 nav.navbar [${MARK}-item]:hover [${MARK}-letter] { transform: scale(1.14); }
-nav.navbar [${MARK}-item]:hover [${MARK}-label] { font-weight: 600; }
+nav.navbar [${MARK}-item]:hover > span { font-weight: 600; }
 nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { transition: transform .12s ease; }
 
 /* Three dots on the right say an entry has a submenu, in place of the caret
    wiped when the entry is dressed. They show once the rail is open. */
+/* The dots take the whole height of the row: a target of a few pixels is
+   one you fight with. They show on the row's hover even when the rail is
+   closed, where they stand in a column for want of width. */
 nav.navbar [${MARK}-more] {
-  margin-left: auto; display: flex; gap: 3px; opacity: 0; transition: opacity .12s ease;
+  position: absolute; right: 0; top: 0; height: 100%; width: 18px;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  margin: 0; opacity: 0; transition: opacity .12s ease; cursor: pointer;
 }
-html[${MARK}-pinned] nav.navbar [${MARK}-more] { opacity: .45; }
-nav.navbar [${MARK}-item]:hover [${MARK}-more] { opacity: .9; }
-nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
-nav.navbar [${MARK}-label] { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
-html[${MARK}-pinned] nav.navbar [${MARK}-label] { opacity: 1; }
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-more] { flex-direction: column; width: 14px; }
+html[${MARK}-pinned] nav.navbar [${MARK}-more] { right: 6px; width: 18px; opacity: .45; }
+nav.navbar [${MARK}-item]:hover [${MARK}-more] { opacity: .95; }
+nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; flex: 0 0 3px; }
+/* The label of an entry: Angular's own span for a module, ours for Home.
+   It is never replaced, only dressed around — Angular keeps it right when
+   it reuses an entry for another module. */
+nav.navbar [${MARK}-item] > span { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
+nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { opacity: 1; }
+html[${MARK}-pinned] nav.navbar [${MARK}-item] > span { opacity: 1; }
 
 /* The submenu of a module opens beside the rail. Fixed rather than absolute:
    the rail scrolls, and an absolute submenu would be cut off at its edge. The
@@ -637,53 +646,62 @@ export class ExtensionModule {
             'nav.navbar li.top-nav a.top-nav-link, nav.navbar a.home-nav-link'
         );
         for (const link of Array.from(entries) as HTMLElement[]) {
-            if (link.hasAttribute(`${MARK}-item`)) {
-                continue;
-            }
-            // Home carries an icon and no words at all, so it needs its
-            // name given to it rather than read from the page.
             const home = link.matches('a.home-nav-link');
-            const label = home ? 'Accueil' : (link.textContent ?? '').trim();
-            if (!label) {
+            const module = home ? 'Home' : moduleOf(link, accents);
+
+            // Angular reuses the same elements for other modules as the menu
+            // changes, so an entry dressed once can later point elsewhere.
+            // The module it stands for is written on it and checked each
+            // pass: unchanged, there is nothing to do.
+            const known = link.getAttribute(`${MARK}-module`);
+            if (known === (module ?? '')) {
                 continue;
             }
 
-            const module = home ? 'Home' : moduleOf(link, accents);
+            const label = home ? 'Accueil' : (link.textContent ?? '').trim();
+            if (!home && !label) {
+                continue;
+            }
+
             const accent = (module !== null && accents[module] !== undefined) ? accents[module] : '#64748b';
+            link.setAttribute(`${MARK}-module`, module ?? '');
             link.setAttribute(`${MARK}-item`, '');
             link.style.setProperty('--ct-accent', accent);
 
-            const text = document.createElement('span');
-            text.setAttribute(`${MARK}-label`, '');
-            text.textContent = label;
-
-            // Home keeps the icon SuiteCRM already draws inside the link;
-            // the stylesheet gives it the entry's colour.
-            const svg = (module !== null && !home) ? await iconFor(module) : null;
-            let mark: HTMLElement = text;
-            if (home) {
-                mark = text;
-            } else if (svg) {
-                mark = document.createElement('span');
-                mark.setAttribute(`${MARK}-icon`, '');
-                mark.innerHTML = svg.replace(ICON_GREY, accent);
-                // The icons SuiteCRM ships carry <desc>Created with Sketch.</desc>,
-                // which a screen reader would read out before the module's name.
-                // The label next to it says what the entry is.
-                mark.setAttribute('aria-hidden', 'true');
-                for (const noise of Array.from(mark.querySelectorAll('title, desc'))) {
-                    noise.remove();
-                }
-            } else {
-                mark = letterTile(label, accent);
+            // Only what this extension added is taken away: the label is
+            // Angular's own and it keeps it up to date by itself.
+            const ours = `[${MARK}-icon], [${MARK}-letter], [${MARK}-more], [${MARK}-label]`;
+            for (const past of Array.from(link.querySelectorAll(ours))) {
+                past.remove();
             }
 
             if (home) {
+                // Home carries an icon and no words at all, so it is given
+                // its name; the stylesheet colours the icon SuiteCRM drew.
+                const text = document.createElement('span');
+                text.setAttribute(`${MARK}-label`, '');
+                text.textContent = label;
                 link.append(text);
             } else {
-                link.textContent = '';
-                link.append(mark, text);
+                const svg = module !== null ? await iconFor(module) : null;
+                let mark: HTMLElement;
+                if (svg) {
+                    mark = document.createElement('span');
+                    mark.setAttribute(`${MARK}-icon`, '');
+                    mark.innerHTML = svg.replace(ICON_GREY, accent);
+                    // The icons SuiteCRM ships carry <desc>Created with
+                    // Sketch.</desc>, which a screen reader would read out
+                    // before the module's name.
+                    mark.setAttribute('aria-hidden', 'true');
+                    for (const noise of Array.from(mark.querySelectorAll('title, desc'))) {
+                        noise.remove();
+                    }
+                } else {
+                    mark = letterTile(label, accent);
+                }
+                link.append(mark);
             }
+
             if (link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu')) {
                 link.append(moreDots());
             }
