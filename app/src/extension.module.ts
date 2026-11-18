@@ -79,7 +79,21 @@ nav.navbar {
 /* Every module is in the rail, so the list is longer than the screen and the
    rail scrolls. A box that scrolls clips what sticks out of it, which is why
    the submenus are taken out of the flow below. */
-nav.navbar { overflow-y: auto !important; overflow-x: hidden !important; scrollbar-width: thin; }
+nav.navbar { overflow-y: auto !important; overflow-x: hidden !important; }
+/* Closed, the rail is 56 pixels wide: a scrollbar would take a fifth of them
+   and crush the icons against the edge. It scrolls with the wheel instead,
+   and shows a thin bar once there is room for it. */
+html:not([${MARK}-pinned]) nav.navbar { scrollbar-width: none; -ms-overflow-style: none; }
+html:not([${MARK}-pinned]) nav.navbar::-webkit-scrollbar { width: 0; height: 0; }
+html[${MARK}-pinned] nav.navbar { scrollbar-width: thin; }
+
+/* Closed, an entry is its icon alone, centred: the label is taken out of the
+   flow rather than merely faded, or the centring would still count it. */
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-item],
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-pin] { padding: 0 !important; justify-content: center; }
+html:not([${MARK}-pinned]) nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
+  display: none !important;
+}
 
 /* Pinned open: the rail keeps its full width and the content stands beside
    it rather than under it, so nothing is hidden. */
