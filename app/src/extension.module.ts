@@ -260,8 +260,12 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 }
 [${MARK}-bar] .search-bar-term {
   background: none !important; border: 0 !important; box-shadow: none !important;
-  color: #fff; width: 220px !important; min-width: 0 !important; height: 36px !important;
+  color: #fff; width: 220px !important; min-width: 0 !important;
   padding: 0 14px 0 18px;
+  /* The field was four pixels taller than the pill and hung out of its
+     bottom, which read as a word sitting too low. */
+  height: 36px !important; min-height: 0 !important; max-height: 36px !important;
+  line-height: 36px !important; align-self: center;
 }
 [${MARK}-bar] .search-bar-term::placeholder { color: rgba(255, 255, 255, .75); }
 [${MARK}-bar] .input-group-append { height: 36px; }
