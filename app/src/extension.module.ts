@@ -107,7 +107,7 @@ nav.navbar .menu-item-wrapper { width: 100% !important; }
    once the rail is open. */
 nav.navbar [${MARK}-item] {
   display: flex !important; align-items: center; gap: 12px;
-  height: var(--ct-rail); padding: 0 13px;
+  height: var(--ct-rail); padding: 0 13px; margin: 0 !important;
   white-space: nowrap; overflow: hidden; position: relative;
 }
 nav.navbar [${MARK}-item]::before {
@@ -124,7 +124,23 @@ nav.navbar [${MARK}-letter] {
 nav.navbar [${MARK}-item], nav.navbar [${MARK}-item]:hover {
   color: #334155 !important; text-decoration: none !important;
 }
-nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .04); }
+/* The entry stays where it is under the pointer: SuiteCRM's own hover adds a
+   margin at the top, which makes the row jump away. It grows instead. */
+nav.navbar [${MARK}-item]:hover { background: rgba(15, 23, 42, .06); }
+nav.navbar [${MARK}-item]:hover [${MARK}-icon],
+nav.navbar [${MARK}-item]:hover [${MARK}-letter] { transform: scale(1.14); }
+nav.navbar [${MARK}-item]:hover [${MARK}-label] { font-weight: 600; }
+nav.navbar [${MARK}-icon], nav.navbar [${MARK}-letter] { transition: transform .12s ease; }
+
+/* Three dots on the right say an entry has a submenu, in place of the caret
+   wiped when the entry is dressed. They show once the rail is open. */
+nav.navbar [${MARK}-more] {
+  margin-left: auto; display: flex; gap: 3px; opacity: 0; transition: opacity .12s ease;
+}
+nav.navbar:hover [${MARK}-more],
+html[${MARK}-pinned] nav.navbar [${MARK}-more] { opacity: .45; }
+nav.navbar [${MARK}-item]:hover [${MARK}-more] { opacity: .9; }
+nav.navbar [${MARK}-more] i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
 nav.navbar [${MARK}-label] { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .12s ease; }
 nav.navbar:hover [${MARK}-label] { opacity: 1; }
 
@@ -148,6 +164,9 @@ nav.navbar .dropdown-menu.more-menu {
   transform: none !important;
 }
 nav.navbar .dropdown-menu.more-menu .nav-item { width: 100% !important; }
+/* It was a dropdown: it kept a height of its own and scrolled inside the
+   rail, which already scrolls. One scrollbar is enough. */
+nav.navbar .dropdown-menu.more-menu { max-height: none !important; overflow: visible !important; }
 
 /* What the rail has no room for. */
 nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none !important; }
@@ -178,17 +197,48 @@ const iconFor = (module: string): Promise<string | null> => {
 
 /**
  * Places a module's submenu beside its entry. The rail scrolls, so the
- * submenu is fixed rather than absolute, and nothing but the code knows how
- * far down the entry has ended up.
+ * submenu is fixed rather than absolute, and only the code knows how far
+ * down the entry has ended up. One listener on the rail rather than one per
+ * entry: Angular replaces the entries as the menu changes, and a listener
+ * set on an entry goes with it.
  */
-const placeSubmenu = (entry: HTMLElement): void => {
-    const submenu = entry.parentElement?.querySelector<HTMLElement>('.dropdown-menu.submenu');
-    if (!submenu) {
+const followThePointer = (rail: HTMLElement): void => {
+    if (rail.hasAttribute(`${MARK}-follows`)) {
         return;
     }
-    const box = entry.getBoundingClientRect();
-    const room = window.innerHeight - box.top;
-    submenu.style.top = `${Math.max(0, box.top - Math.max(0, submenu.offsetHeight - room))}px`;
+    rail.setAttribute(`${MARK}-follows`, '');
+
+    rail.addEventListener('mouseover', event => {
+        const over = event.target;
+        if (!(over instanceof Element)) {
+            return;
+        }
+        const entry = over.closest('li.top-nav');
+        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
+        const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
+        if (!submenu || !link) {
+            return;
+        }
+
+        const box = link.getBoundingClientRect();
+        const height = submenu.offsetHeight;
+        // Against the bottom of the window, the submenu rises rather than
+        // running off the screen.
+        const top = Math.min(box.top, Math.max(0, window.innerHeight - height - 8));
+        submenu.style.top = `${top}px`;
+    });
+};
+
+/** The three dots that say an entry opens a submenu. */
+const moreDots = (): HTMLElement => {
+    const dots = document.createElement('span');
+    dots.setAttribute(`${MARK}-more`, '');
+    dots.setAttribute('aria-hidden', 'true');
+    for (let drawn = 0; drawn < 3; drawn++) {
+        dots.append(document.createElement('i'));
+    }
+
+    return dots;
 };
 
 /**
@@ -374,7 +424,10 @@ export class ExtensionModule {
         // The modules sit in li.top-nav, Home in the separate component next
         // to them. The link to dress is the one at the top of the entry, not
         // those of the submenu underneath.
-        const bar = document.querySelector('nav.navbar');
+        const bar = document.querySelector<HTMLElement>('nav.navbar');
+        if (bar) {
+            followThePointer(bar);
+        }
         if (bar && !bar.querySelector(`[${MARK}-pin]`)) {
             const button = pinButton();
             if (document.documentElement.hasAttribute(`${MARK}-pinned`)) {
@@ -427,7 +480,9 @@ export class ExtensionModule {
 
             link.textContent = '';
             link.append(mark, text);
-            link.addEventListener('mouseenter', () => placeSubmenu(link));
+            if (link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu')) {
+                link.append(moreDots());
+            }
         }
     }
 }
