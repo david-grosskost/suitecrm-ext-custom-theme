@@ -326,6 +326,13 @@ export class ExtensionModule {
                 mark = document.createElement('span');
                 mark.setAttribute(`${MARK}-icon`, '');
                 mark.innerHTML = svg.replace(ICON_GREY, accent);
+                // The icons SuiteCRM ships carry <desc>Created with Sketch.</desc>,
+                // which a screen reader would read out before the module's name.
+                // The label next to it says what the entry is.
+                mark.setAttribute('aria-hidden', 'true');
+                for (const noise of Array.from(mark.querySelectorAll('title, desc'))) {
+                    noise.remove();
+                }
             } else {
                 mark = letterTile(label, accent);
             }
