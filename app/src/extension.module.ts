@@ -349,6 +349,10 @@ nav.navbar scrm-menu-items-list { display: none !important; }
   position: absolute !important; top: 100% !important;
   flex-direction: column !important; align-items: stretch !important;
   min-width: 190px !important; width: auto !important; height: auto !important;
+  /* SuiteCRM pushes the notifications panel down by forty-two pixels of its
+     own, and nudges the others up by five: they all hang from the same line
+     here. */
+  transform: none !important; margin: 0 !important;
 }
 [${MARK}-bar] .dropdown-menu > *, [${MARK}-bar] .dropdown-menu ul, [${MARK}-bar] .dropdown-menu li {
   width: 100% !important; height: auto !important; flex: 0 0 auto !important;
