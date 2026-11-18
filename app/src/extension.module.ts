@@ -216,11 +216,14 @@ const iconFor = (module: string): Promise<string | null> => {
 };
 
 /**
- * Places a module's submenu beside its entry. The rail scrolls, so the
- * submenu is fixed rather than absolute, and only the code knows how far
- * down the entry has ended up. One listener on the rail rather than one per
- * entry: Angular replaces the entries as the menu changes, and a listener
- * set on an entry goes with it.
+ * Opens a module's submenu beside its entry, and only from the three dots:
+ * clicking a module should go to the module, not unfold a menu under the
+ * pointer. The rail scrolls, so the submenu is fixed rather than absolute,
+ * and only the code knows how far down the entry has ended up.
+ *
+ * One listener on the document rather than one per entry: Angular replaces
+ * the entries as the menu changes, and a listener set on an entry goes with
+ * it.
  */
 const followThePointer = (rail: HTMLElement): void => {
     if (rail.hasAttribute(`${MARK}-follows`)) {
@@ -241,8 +244,8 @@ const followThePointer = (rail: HTMLElement): void => {
             return;
         }
 
-        // Staying on the dots that opened it, or walking onto the submenu
-        // itself, keeps it open: the pointer has to cross the gap between.
+        // Walking onto the submenu keeps it open: the pointer has to cross
+        // the gap between the dots and it.
         if (over.closest('.dropdown-menu.submenu')) {
             window.clearTimeout(closing);
 
@@ -289,10 +292,8 @@ const moreDots = (): HTMLElement => {
 /**
  * Waits for SuiteCRM to have drawn its menu, and says whether it did.
  *
- * Two reasons to wait. SuiteCRM measures the bar to decide how many modules
- * fit, and it measures once: a rail of 56 px applied first means no module
- * fits, and the menu stays empty for good. And the login screen has no menu
- * at all, so it keeps SuiteCRM's own layout rather than an empty rail.
+ * The login screen has no menu at all, so it keeps SuiteCRM's own layout
+ * rather than an empty rail.
  */
 const menuDrawn = async (): Promise<boolean> => {
     for (let waited = 0; waited < 20000; waited += 200) {
@@ -306,7 +307,7 @@ const menuDrawn = async (): Promise<boolean> => {
 };
 
 /**
- * Whether the rail is pinned open. Kept per browser, because it is a habit of
+ * Whether the rail is held open. Kept per browser, because it is a habit of
  * the person sitting there, not a setting of the instance.
  */
 const PIN_KEY = 'custom-theme.pinned';
@@ -360,151 +361,6 @@ const pinButton = (): HTMLElement => {
         applyPin(pinned);
         writePin(pinned);
         says(pinned);
-    });
-
-    return button;
-};
-
-/**
- * Places a module's submenu beside its entry. The rail scrolls, so the
- * submenu is fixed rather than absolute, and only the code knows how far
- * down the entry has ended up. One listener on the rail rather than one per
- * entry: Angular replaces the entries as the menu changes, and a listener
- * set on an entry goes with it.
- */
-const followThePointer = (rail: HTMLElement): void => {
-    if (rail.hasAttribute(`${MARK}-follows`)) {
-        return;
-    }
-    rail.setAttribute(`${MARK}-follows`, '');
-
-    let closing = 0;
-    const closeAll = (): void => {
-        for (const open of Array.from(document.querySelectorAll(`[${MARK}-open]`))) {
-            open.removeAttribute(`${MARK}-open`);
-        }
-    };
-
-    document.addEventListener('mouseover', event => {
-        const over = event.target;
-        if (!(over instanceof Element)) {
-            return;
-        }
-
-        // Staying on the dots that opened it, or walking onto the submenu
-        // itself, keeps it open: the pointer has to cross the gap between.
-        if (over.closest('.dropdown-menu.submenu')) {
-            window.clearTimeout(closing);
-
-            return;
-        }
-
-        const dots = over.closest(`[${MARK}-more]`);
-        if (!dots) {
-            closing = window.setTimeout(closeAll, 250);
-
-            return;
-        }
-
-        window.clearTimeout(closing);
-        const entry = dots.closest('li.top-nav');
-        const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
-        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
-        if (!link || !submenu) {
-            return;
-        }
-
-        closeAll();
-        submenu.setAttribute(`${MARK}-open`, '');
-        const box = link.getBoundingClientRect();
-        // Against the bottom of the window the submenu rises rather than
-        // running off the screen.
-        const top = Math.min(box.top, Math.max(0, window.innerHeight - submenu.offsetHeight - 8));
-        submenu.style.top = `${top}px`;
-    });
-};
-
-/** The three dots that say an entry opens a submenu. */
-const moreDots = (): HTMLElement => {
-    const dots = document.createElement('span');
-    dots.setAttribute(`${MARK}-more`, '');
-    dots.setAttribute('aria-hidden', 'true');
-    for (let drawn = 0; drawn < 3; drawn++) {
-        dots.append(document.createElement('i'));
-    }
-
-    return dots;
-};
-
-/**
- * Waits for SuiteCRM to have drawn its menu, and says whether it did.
- *
- * Two reasons to wait. SuiteCRM measures the bar to decide how many modules
- * fit, and it measures once: a rail of 56 px applied first means no module
- * fits, and the menu stays empty for good. And the login screen has no menu
- * at all, so it keeps SuiteCRM's own layout rather than an empty rail.
- */
-const menuDrawn = async (): Promise<boolean> => {
-    for (let waited = 0; waited < 20000; waited += 200) {
-        if (document.querySelector('nav.navbar li.top-nav a.top-nav-link') !== null) {
-            return true;
-        }
-        await new Promise(resolve => window.setTimeout(resolve, 200));
-    }
-
-    return false;
-};
-
-/**
- * Whether the rail is pinned open. Kept per browser, because it is a habit of
- * the person sitting there, not a setting of the instance.
- */
-const PIN_KEY = 'custom-theme.pinned';
-
-const readPin = (): boolean => {
-    try {
-        return window.localStorage.getItem(PIN_KEY) === 'yes';
-    } catch {
-        return false;
-    }
-};
-
-const writePin = (pinned: boolean): void => {
-    try {
-        window.localStorage.setItem(PIN_KEY, pinned ? 'yes' : 'no');
-    } catch {
-        // A browser that refuses storage still gets a working rail, it just
-        // forgets the choice between visits.
-    }
-};
-
-const applyPin = (pinned: boolean): void => {
-    if (pinned) {
-        document.documentElement.setAttribute(`${MARK}-pinned`, '');
-    } else {
-        document.documentElement.removeAttribute(`${MARK}-pinned`);
-    }
-};
-
-/** The button at the top of the rail that holds it open. */
-const pinButton = (): HTMLElement => {
-    const button = document.createElement('button');
-    button.setAttribute(`${MARK}-pin`, '');
-    button.type = 'button';
-    button.title = 'Garder le menu ouvert';
-
-    const glyph = document.createElement('span');
-    glyph.textContent = '\u00AB';
-    const label = document.createElement('span');
-    label.textContent = 'Garder ouvert';
-    button.append(glyph, label);
-
-    button.addEventListener('click', () => {
-        const pinned = !document.documentElement.hasAttribute(`${MARK}-pinned`);
-        applyPin(pinned);
-        writePin(pinned);
-        glyph.textContent = pinned ? '\u00BB' : '\u00AB';
-        label.textContent = pinned ? 'Replier' : 'Garder ouvert';
     });
 
     return button;
