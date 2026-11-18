@@ -59,7 +59,14 @@ const styleSheet = (): HTMLStyleElement => {
  * class names, which are not.
  */
 const layout = (rail: Rail): string => `
-:root { --ct-rail: ${rail.width}px; --ct-rail-open: ${rail.open}px; --ct-bar: ${rail.width}px; }
+/* The rail is wider than a row is tall: an icon centred in it then keeps
+   clear of the three dots standing against the right edge. */
+:root {
+  --ct-row: ${rail.width}px;
+  --ct-rail: ${rail.width + 10}px;
+  --ct-rail-open: ${rail.open}px;
+  --ct-bar: ${rail.width}px;
+}
 
 /* The bar leaves the flow and stands against the left edge. !important all
    the way: SuiteCRM's own rules are more specific than ours. */
@@ -94,9 +101,7 @@ html:not([${MARK}-pinned]) nav.navbar [${MARK}-pin] { padding: 0 !important; jus
 html:not([${MARK}-pinned]) nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([${MARK}-letter]):not([${MARK}-more]) {
   display: none !important;
 }
-/* Closed, an entry that has a submenu leaves room on its right, so the icon
-   does not touch the dots — plain to see on a module shown as a letter. */
-html:not([${MARK}-pinned]) nav.navbar [${MARK}-item]:has([${MARK}-more]) { padding: 0 12px 0 0 !important; }
+
 
 /* Pinned open: the rail keeps its full width and the content stands beside
    it rather than under it, so nothing is hidden. */
@@ -104,7 +109,7 @@ html[${MARK}-pinned] nav.navbar { width: var(--ct-rail-open) !important; box-sha
 html[${MARK}-pinned] app-root { padding-left: var(--ct-rail-open); }
 
 [${MARK}-pin] {
-  flex: 0 0 auto; height: var(--ct-rail); width: 100%;
+  flex: 0 0 auto; height: var(--ct-row); width: 100%;
   display: flex; align-items: center; gap: 12px; padding: 0 13px;
   border: 0; background: none; cursor: pointer; color: #64748b;
   border-bottom: 1px solid rgba(15, 23, 42, .06);
@@ -132,7 +137,7 @@ nav.navbar .menu-item-wrapper { width: 100% !important; }
    once the rail is open. */
 nav.navbar [${MARK}-item] {
   display: flex !important; align-items: center; gap: 12px;
-  height: var(--ct-rail); padding: 0 13px; margin: 0 !important;
+  height: var(--ct-row); padding: 0 13px; margin: 0 !important;
   white-space: nowrap; overflow: hidden; position: relative;
 }
 /* Bootstrap draws a caret with a border on ::after; the three dots say it
