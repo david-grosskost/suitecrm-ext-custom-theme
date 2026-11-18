@@ -173,20 +173,10 @@ html[${MARK}-pinned] nav.navbar .dropdown-menu.submenu { left: var(--ct-rail-ope
    go to the module, not unfold a menu under the pointer. */
 nav.navbar .dropdown-menu.submenu[${MARK}-open] { display: block !important; }
 
-/* SuiteCRM folds the modules that do not fit its horizontal bar into an
-   "Options" menu. A column has room for all of them, so the fold is undone:
-   the menu becomes part of the rail and its own entry disappears. */
-nav.navbar ul.nav-collapsed-items > li.top-nav > a.dropdown-toggle { display: none !important; }
-nav.navbar .dropdown-menu.more-menu {
-  position: static !important; display: block !important; float: none !important;
-  width: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important;
-  border: 0 !important; box-shadow: none !important; background: none !important;
-  transform: none !important;
-}
-nav.navbar .dropdown-menu.more-menu .nav-item { width: 100% !important; }
-/* It was a dropdown: it kept a height of its own and scrolled inside the
-   rail, which already scrolls. One scrollbar is enough. */
-nav.navbar .dropdown-menu.more-menu { max-height: none !important; overflow: visible !important; }
+/* SuiteCRM keeps a folded copy of the menu for the modules that do not fit
+   its horizontal bar. The limit is lifted (config/services), so every module
+   is a full entry with its submenu and that copy only repeats them. */
+nav.navbar scrm-menu-items-list { display: none !important; }
 
 /* What the rail has no room for. */
 nav.navbar scrm-search-bar, nav.navbar .navbar-toggler { display: none !important; }
@@ -372,10 +362,7 @@ const pinButton = (): HTMLElement => {
  * own address only gives the lowercase route.
  */
 const moduleOf = (link: Element, accents: Record<string, string>): string | null => {
-    // An entry freed from the overflow menu shares its li with every other
-    // one: only its own address says which module it is.
-    const alone = link.closest('.dropdown-menu.more-menu') !== null;
-    const entry = alone ? null : (link.closest('li.top-nav, li.nav-item') ?? link.parentElement);
+    const entry = link.closest('li.top-nav, li.nav-item') ?? link.parentElement;
     const hrefs = entry ? Array.from(entry.querySelectorAll('a[href]')).map(a => a.getAttribute('href') ?? '') : [];
     for (const href of hrefs) {
         const named = /return_module=([A-Za-z0-9_]+)/.exec(href);
@@ -484,9 +471,7 @@ export class ExtensionModule {
         }
 
         const entries = document.querySelectorAll(
-            'nav.navbar li.top-nav a.top-nav-link,'
-            + ' nav.navbar a.home-nav-link,'
-            + ' nav.navbar .dropdown-menu.more-menu a.nav-link'
+            'nav.navbar li.top-nav a.top-nav-link, nav.navbar a.home-nav-link'
         );
         for (const link of Array.from(entries) as HTMLElement[]) {
             if (link.hasAttribute(`${MARK}-item`)) {

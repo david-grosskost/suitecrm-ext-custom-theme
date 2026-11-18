@@ -31,9 +31,18 @@ reteinter.
 alors au lieu d'être recouvert. Le choix est gardé par navigateur : c'est une habitude de
 la personne qui travaille, pas un réglage de l'instance.
 
-**Tous les modules sont dans le rail.** SuiteCRM replie dans un menu « Options » ceux qui
-ne tiennent pas dans sa barre horizontale ; une colonne a la place pour tous, donc le repli
-est défait et son entrée disparaît. Le rail défile quand la liste dépasse l'écran.
+**Tous les modules sont dans le rail**, chacun avec son sous-menu. SuiteCRM n'en affiche
+que huit et replie le reste dans un menu « Options » : non par manque de place mesurée,
+mais par un plafond, `default_max_tabs` côté historique et `themes.navigation_tab_limits`
+côté SuiteCRM 8. Une colonne qui défile n'a pas cette contrainte, et un module replié
+perdrait son sous-menu, que SuiteCRM ne construit pas pour lui. L'extension lève les deux
+plafonds — le second par `config/services/`, que SuiteCRM importe de lui-même — et masque
+la copie repliée, devenue un doublon.
+
+**Le rail s'ouvre au clic**, jamais au passage de la souris : un menu qui se déplie tout
+seul gêne l'écran derrière lui. Trois lignes en tête du rail, qui deviennent une croix.
+Le choix est gardé par navigateur. Le sous-menu d'un module s'ouvre sur ses trois points,
+pas sur toute la ligne : cliquer un module doit mener au module.
 
 **Les couleurs se choisissent** sur la page `index.php?entryPoint=customThemeAdmin` :
 couleur principale, les deux bouts du dégradé du bandeau, fond des écrans, fond du menu.
@@ -93,6 +102,9 @@ il faut vérifier que le rail tient toujours — c'est le prix de ce thème, et 
 | `legacy/include/custom-theme/Theme.php` | ce que l'interface reçoit (variables, accents, rail) |
 | `legacy/include/custom-theme/ConfigTable.php`, `Settings.php` | les couleurs en base (table `config`) |
 | `legacy/include/custom-theme/ServeTheme.php`, `Reply.php` | le point d'entrée qui sert les couleurs |
+| `legacy/include/custom-theme/Navigation.php` | le plafond du nombre de modules affichés |
+| `config/services/navigation-tab-limits.yaml` | le même plafond, côté SuiteCRM 8 |
+| `database/install.php` | lève le plafond à l'installation |
 | `legacy/include/custom-theme/AdminForm.php` | ce que le formulaire accepte, et son dessin |
 | `legacy/include/custom-theme/AdminPage.php` | la page d'administration côté SuiteCRM |
 | `legacy/Extension/…` | déclaration des points d'entrée, de l'entrée d'administration et de ses libellés |
