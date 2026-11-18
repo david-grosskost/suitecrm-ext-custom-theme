@@ -229,6 +229,10 @@ nav.navbar scrm-menu-items-list { display: none !important; }
   display: flex !important; align-items: center; justify-content: center; line-height: 0;
 }
 [${MARK}-bar] svg { display: block; }
+/* SuiteCRM leaves a margin to the right of an icon, for the words that
+   usually follow it. Alone in its square, that margin pushes it off centre. */
+[${MARK}-bar] svg { margin: 0 !important; }
+[${MARK}-bar] .sicon, [${MARK}-bar] svg-icon { width: auto !important; }
 /* The shortcut to the search on a narrow screen: the bar carries the search
    itself, and an empty square would sit in the row. */
 [${MARK}-bar] .search-mobile-view { display: none !important; }
@@ -257,7 +261,7 @@ nav.navbar scrm-menu-items-list { display: none !important; }
 [${MARK}-bar] .search-bar-term {
   background: none !important; border: 0 !important; box-shadow: none !important;
   color: #fff; width: 220px !important; min-width: 0 !important; height: 36px !important;
-  padding: 0 12px;
+  padding: 0 14px 0 18px;
 }
 [${MARK}-bar] .search-bar-term::placeholder { color: rgba(255, 255, 255, .75); }
 [${MARK}-bar] .input-group-append { height: 36px; }
