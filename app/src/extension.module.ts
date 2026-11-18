@@ -275,6 +275,15 @@ html[${MARK}-pinned] nav.navbar .dropdown-menu.submenu { left: var(--ct-rail-ope
    go to the module, not unfold a menu under the pointer. */
 nav.navbar .dropdown-menu.submenu[${MARK}-open] { display: block !important; }
 
+/* The submenu says which module it belongs to: opened from the dots of a
+   closed rail, nothing else would tell. */
+nav.navbar .dropdown-menu.submenu::before {
+  content: attr(${MARK}-of); display: block;
+  padding: 10px 16px 7px; font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: #94a3b8;
+}
+nav.navbar .dropdown-menu.submenu:not([${MARK}-of])::before { display: none; }
+
 /* SuiteCRM keeps a folded copy of the menu for the modules that do not fit
    its horizontal bar. The limit is lifted (config/services), so every module
    is a full entry with its submenu and that copy only repeats them. */
@@ -842,7 +851,9 @@ export class ExtensionModule {
                 }
             }
 
-            if (link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu')) {
+            const submenu = link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu');
+            if (submenu) {
+                submenu.setAttribute(`${MARK}-of`, label);
                 link.append(moreDots());
             }
         }
