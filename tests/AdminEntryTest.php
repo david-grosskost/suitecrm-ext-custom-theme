@@ -66,7 +66,7 @@ final class AdminEntryTest extends TestCase
         self::assertSame('./index.php?entryPoint=customThemeAdmin', $links['custom_theme'][3]);
 
         $registry = (string) file_get_contents(
-            __DIR__ . '/../legacy/Extension/application/Ext/EntryPointRegistry/custom-theme.php'
+            __DIR__ . '/../legacy/Extension/application/Ext/EntryPointRegistry/custom-theme.php',
         );
         self::assertStringContainsString("\$entry_point_registry['customThemeAdmin']", $registry);
     }
