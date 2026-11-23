@@ -2,49 +2,58 @@
 
 declare(strict_types=1);
 
-// Thème vertical (extension custom-theme): the administration screen where
-// the colours are chosen. Reached from Administration, and only by an
-// administrator: SuiteCRM has already checked the session when it hands over
-// here (auth true in the registry), and is_admin decides the rest.
+// Vertical theme (extension custom-theme): the screen where the colours are
+// chosen. Action CustomTheme of the Administration module, mapped to this
+// file by legacy/Extension/modules/Administration/Ext/ActionFileMap/
+// custom-theme.php. Run by SuiteCRM's controller, with the Administration
+// labels in $mod_strings; administrators only.
+//
+// An action of the Administration module, not an entry point: a link in the
+// administration page goes through SuiteCRM 8's route converter, which
+// throws "No module defined" on a URL that carries no module. That exception
+// takes down the whole navigation, not just this entry.
 //
 // It writes nothing but five colours, in the config table, in the category of
 // this extension. Nothing of SuiteCRM is touched.
 
 use SuiteCrmExt\CustomTheme\AdminForm;
 use SuiteCrmExt\CustomTheme\ConfigTable;
+use SuiteCrmExt\CustomTheme\Page;
 use SuiteCrmExt\CustomTheme\Palette;
-use SuiteCrmExt\CustomTheme\Reply;
+use SuiteCrmExt\CustomTheme\PageView;
 
 require_once __DIR__ . '/Palette.php';
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/ConfigTable.php';
 require_once __DIR__ . '/AdminForm.php';
-require_once __DIR__ . '/Reply.php';
+require_once __DIR__ . '/Page.php';
+// SuiteCRM's own view first (the current directory is public/legacy), then ours.
+require_once getcwd() . '/include/MVC/View/SugarView.php';
+require_once __DIR__ . '/PageView.php';
 
-/** @var \User|null $current_user Set by SuiteCRM */
-global $current_user;
-
-if (!is_admin($current_user)) {
-    Reply::send([
-        'status' => 403,
-        'headers' => ['Content-Type' => 'text/plain; charset=utf-8', 'Cache-Control' => 'no-cache'],
-        'body' => "Cette page est réservée aux administrateurs.\n",
-    ]);
-
-    return;
+/** @var mixed $user */
+$user = $GLOBALS['current_user'] ?? null;
+if (!$user instanceof User || !is_admin($user)) {
+    $denied = translate('ERR_NOT_ADMIN');
+    sugar_die(is_string($denied) ? $denied : 'Unauthorized access to administration.');
 }
+
+/** @var mixed $labels */
+$labels = $GLOBALS['mod_strings'] ?? [];
+$labels = is_array($labels) ? $labels : [];
 
 $settings = ConfigTable::forSuiteCrm();
 $saved = false;
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-
 if (is_string($method) && strtoupper($method) === 'POST') {
     $settings->replace(AdminForm::fromPost($_POST));
     $saved = true;
 }
 
-Reply::send(Reply::text(
-    'text/html',
-    AdminForm::page(Palette::settings($settings->read()), 'index.php?entryPoint=customThemeAdmin', $saved),
-));
+$view = new PageView(
+    Page::label($labels, 'LBL_CT_ADMIN_TITLE'),
+    AdminForm::body(Palette::settings($settings->read()), Page::URL, $saved),
+);
+$view->init();
+$view->process();

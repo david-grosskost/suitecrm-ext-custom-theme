@@ -615,13 +615,39 @@ const moreDots = (): HTMLElement => {
 };
 
 /**
- * Waits for SuiteCRM to have drawn its menu, however long that takes: before
- * it, there is the login screen, and a person takes the time they take.
+ * How long the rail waits for a menu once someone is logged in, before giving
+ * up and showing whatever SuiteCRM drew. Generous: a slow instance must not
+ * lose its rail.
  */
-const menuDrawn = async (): Promise<void> => {
+const PATIENCE = 20_000;
+
+/** Whether the login form is on screen: there, no menu is expected yet. */
+const loginShowing = (): boolean => document.querySelector('scrm-login-ui, #login-form, form[name=login]') !== null;
+
+/**
+ * Waits for SuiteCRM to have drawn its menu. On the login screen it waits
+ * however long the person takes. Once they are through it, it waits PATIENCE
+ * at most, then stops.
+ *
+ * The bare screen hides the navbar while this waits, so waiting for ever is
+ * not a neutral choice: when the menu never comes — a back end that fails to
+ * answer, say — it would leave the person with no navigation at all and no
+ * way back. The caller lays the rail out either way; a menuless navbar is
+ * poor, an invisible one is a dead end.
+ */
+const menuDrawn = async (): Promise<boolean> => {
+    let waited = 0;
     while (document.querySelector('nav.navbar li.top-nav a.top-nav-link') === null) {
+        if (!loginShowing()) {
+            if (waited >= PATIENCE) {
+                return false;
+            }
+            waited += 300;
+        }
         await new Promise(resolve => window.setTimeout(resolve, 300));
     }
+
+    return true;
 };
 
 /**
@@ -746,6 +772,7 @@ export class ExtensionModule {
         // waits for the menu: see menuDrawn.
         styleSheet().textContent = bareScreen();
         const painted = await paintIcons(theme.accents ?? {});
+        // The layout goes on whether or not the menu came: see menuDrawn.
         await menuDrawn();
 
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
