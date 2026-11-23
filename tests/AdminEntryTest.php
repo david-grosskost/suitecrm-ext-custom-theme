@@ -23,14 +23,25 @@ final class AdminEntryTest extends TestCase
         . '/../legacy/Extension/modules/Administration/Ext/Administration/custom-theme.php';
     private const string LANGUAGE = __DIR__
         . '/../legacy/Extension/modules/Administration/Ext/Language/';
+    private const string REGISTRY = __DIR__
+        . '/../legacy/Extension/application/Ext/EntryPointRegistry/custom-theme.php';
+
+    /** Every label the entry names; the shape below is what uses them. */
+    private const array LABELS = [
+        'LBL_CT_ADMIN_HEADER',
+        'LBL_CT_ADMIN_HEADER_DESC',
+        'LBL_CT_ADMIN_TITLE',
+        'LBL_CT_ADMIN_DESC',
+    ];
 
     /**
      * The groups the file appends, as SuiteCRM collects them.
      *
-     * @return array<int, array<int, mixed>>
+     * @return list<array<int, mixed>>
      */
-    private static function groups(int $passes = 1): array
+    private static function headerGroups(int $passes = 1): array
     {
+        /** @var list<array<int, mixed>> $admin_group_header */
         $admin_group_header = [];
         for ($pass = 0; $pass < $passes; $pass++) {
             require self::ENTRY;
@@ -43,49 +54,62 @@ final class AdminEntryTest extends TestCase
     {
         // A fatal error here is the failure this test exists for; it would
         // stop PHPUnit outright, which is the point.
-        $groups = self::groups(2);
+        $groups = self::headerGroups(2);
 
         self::assertCount(2, $groups, 'the file appends its group once per pass');
+        self::assertSame($groups[0] ?? null, $groups[1] ?? null);
     }
 
     public function testAppendsItsGroupWithoutTouchingTheOthers(): void
     {
+        /** @var list<array<int, mixed>> $admin_group_header */
         $admin_group_header = [['LBL_SOMEONE_ELSE', '', false, [], '', 'module_settings']];
         require self::ENTRY;
 
         self::assertCount(2, $admin_group_header, 'the group of another extension is kept');
-        self::assertSame('LBL_SOMEONE_ELSE', $admin_group_header[0][0]);
-        self::assertSame('LBL_CT_ADMIN_HEADER', $admin_group_header[1][0]);
+        self::assertSame('LBL_SOMEONE_ELSE', $admin_group_header[0][0] ?? null);
+        self::assertSame(self::headerGroups()[0] ?? null, $admin_group_header[1] ?? null);
     }
 
     public function testPointsAtTheScreenThatServesTheColours(): void
     {
-        $links = self::groups()[0][3]['Administration'] ?? [];
+        $expected = [
+            'LBL_CT_ADMIN_HEADER',
+            '',
+            false,
+            ['Administration' => ['custom_theme' => [
+                'icon_AdminThemes',
+                'LBL_CT_ADMIN_TITLE',
+                'LBL_CT_ADMIN_DESC',
+                './index.php?entryPoint=customThemeAdmin',
+                'admin-themes',
+            ]]],
+            'LBL_CT_ADMIN_HEADER_DESC',
+            'module_settings',
+        ];
 
-        self::assertArrayHasKey('custom_theme', $links);
-        self::assertSame('./index.php?entryPoint=customThemeAdmin', $links['custom_theme'][3]);
+        self::assertSame($expected, self::headerGroups()[0] ?? null);
+    }
 
-        $registry = (string) file_get_contents(
-            __DIR__ . '/../legacy/Extension/application/Ext/EntryPointRegistry/custom-theme.php',
-        );
+    public function testTheScreenItPointsAtIsRegistered(): void
+    {
+        $registry = (string) file_get_contents(self::REGISTRY);
+
         self::assertStringContainsString("\$entry_point_registry['customThemeAdmin']", $registry);
     }
 
     /**
-     * Every label the entry names must exist in both languages, or the
-     * administration page shows an empty heading.
+     * A label with no translation shows as an empty heading in the
+     * administration page.
      */
     public function testEveryLabelIsTranslated(): void
     {
-        $group = self::groups()[0];
-        $link = $group[3]['Administration']['custom_theme'];
-        $keys = [$group[0], $group[4], $link[1], $link[2]];
-
         foreach (['fr_FR', 'en_us'] as $language) {
+            /** @var array<string, string> $mod_strings */
             $mod_strings = [];
             require self::LANGUAGE . $language . '.custom-theme.php';
 
-            foreach ($keys as $key) {
+            foreach (self::LABELS as $key) {
                 self::assertArrayHasKey($key, $mod_strings, "$key is missing in $language");
                 self::assertNotSame('', trim($mod_strings[$key]));
             }
