@@ -105,8 +105,9 @@ final class AdminEntryTest extends TestCase
     public function testEveryLinkCarriesAModule(): void
     {
         $group = self::headerGroups()[0] ?? [];
-        $defs = is_array($group) ? ($group[3] ?? []) : [];
-        $links = is_array($defs) ? ($defs['Administration'] ?? []) : [];
+        $defs = $group[3] ?? [];
+        self::assertIsArray($defs);
+        $links = $defs['Administration'] ?? [];
         self::assertIsArray($links);
         self::assertNotEmpty($links, 'the entry shows at least one link');
 
