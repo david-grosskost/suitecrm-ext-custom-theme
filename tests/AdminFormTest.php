@@ -7,6 +7,7 @@ namespace SuiteCrmExt\CustomTheme\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use SuiteCrmExt\CustomTheme\AdminForm;
+use SuiteCrmExt\CustomTheme\Page;
 use SuiteCrmExt\CustomTheme\Palette;
 
 #[CoversClass(AdminForm::class)]
@@ -50,7 +51,7 @@ final class AdminFormTest extends TestCase
 
     public function testTheFormShowsEveryColourItCanChange(): void
     {
-        $page = AdminForm::page(Palette::settings([]), 'index.php?entryPoint=customThemeAdmin', false);
+        $page = AdminForm::body(Palette::settings([]), Page::URL, false);
 
         foreach (AdminForm::FIELDS as $field => $label) {
             self::assertStringContainsString("name=\"{$field}\"", $page);
@@ -60,7 +61,7 @@ final class AdminFormTest extends TestCase
 
     public function testTheFormNeverWritesAValueIntoThePageUnescaped(): void
     {
-        $page = AdminForm::page(['primary' => '"><script>alert(1)</script>'], 'x', false);
+        $page = AdminForm::body(['primary' => '"><script>alert(1)</script>'], 'x', false);
 
         self::assertStringNotContainsString('<script>alert(1)', $page);
         self::assertStringContainsString('&lt;script&gt;', $page);
@@ -70,7 +71,7 @@ final class AdminFormTest extends TestCase
     {
         $values = Palette::settings([]);
 
-        self::assertStringContainsString('enregistrées', AdminForm::page($values, 'x', true));
-        self::assertStringNotContainsString('enregistrées', AdminForm::page($values, 'x', false));
+        self::assertStringContainsString('enregistrées', AdminForm::body($values, 'x', true));
+        self::assertStringNotContainsString('enregistrées', AdminForm::body($values, 'x', false));
     }
 }

@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace SuiteCrmExt\CustomTheme\Tests;
 
 use PHPUnit\Framework\TestCase;
+use SuiteCrmExt\CustomTheme\Page;
 
 /**
  * The entry this extension adds to the Administration page, read as SuiteCRM
  * reads it.
  *
- * SuiteCRM assembles the file below into adminpaneldefs.php and loads it with
- * a bare require from two handlers in the same request, so the file must bear
- * being included twice. It once held something that could not be declared
- * twice; the fatal error that followed emptied the whole module menu, and the
- * entry was removed rather than repaired. These tests keep that from coming
- * back.
+ * Two mistakes are pinned down here, both of which emptied the module menu of
+ * the whole instance with no trace in any log.
+ *
+ * The link once pointed at an entry point, a URL carrying no module.
+ * SuiteCRM 8 hands every link of the administration page to its route
+ * converter, which throws "No module defined" on such a URL; nothing catches
+ * it, the appMetadata query fails whole, and the navigation disappears.
+ *
+ * And the file is loaded with a bare require from two handlers in the same
+ * request, so it must bear being included twice: it may hold arrays and
+ * nothing that cannot be declared a second time.
  */
 final class AdminEntryTest extends TestCase
 {
@@ -23,8 +29,8 @@ final class AdminEntryTest extends TestCase
         . '/../legacy/Extension/modules/Administration/Ext/Administration/custom-theme.php';
     private const string LANGUAGE = __DIR__
         . '/../legacy/Extension/modules/Administration/Ext/Language/';
-    private const string REGISTRY = __DIR__
-        . '/../legacy/Extension/application/Ext/EntryPointRegistry/custom-theme.php';
+    private const string ACTION_MAP = __DIR__
+        . '/../legacy/Extension/modules/Administration/Ext/ActionFileMap/custom-theme.php';
 
     /** Every label the entry names; the shape below is what uses them. */
     private const array LABELS = [
@@ -81,7 +87,7 @@ final class AdminEntryTest extends TestCase
                 'icon_AdminThemes',
                 'LBL_CT_ADMIN_TITLE',
                 'LBL_CT_ADMIN_DESC',
-                './index.php?entryPoint=customThemeAdmin',
+                Page::URL,
                 'admin-themes',
             ]]],
             'LBL_CT_ADMIN_HEADER_DESC',
@@ -91,11 +97,51 @@ final class AdminEntryTest extends TestCase
         self::assertSame($expected, self::headerGroups()[0] ?? null);
     }
 
-    public function testTheScreenItPointsAtIsRegistered(): void
+    /**
+     * The mistake that emptied the menu: a link whose URL carries no module.
+     * SuiteCRM 8's route converter throws on it, and the navigation of the
+     * whole instance goes with it.
+     */
+    public function testEveryLinkCarriesAModule(): void
     {
-        $registry = (string) file_get_contents(self::REGISTRY);
+        $group = self::headerGroups()[0] ?? [];
+        $defs = is_array($group) ? ($group[3] ?? []) : [];
+        $links = is_array($defs) ? ($defs['Administration'] ?? []) : [];
+        self::assertIsArray($links);
+        self::assertNotEmpty($links, 'the entry shows at least one link');
 
-        self::assertStringContainsString("\$entry_point_registry['customThemeAdmin']", $registry);
+        foreach ($links as $name => $link) {
+            self::assertIsArray($link);
+            $url = $link[3] ?? '';
+            self::assertIsString($url);
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
+            self::assertArrayHasKey('module', $params, "the link $name carries no module");
+            self::assertNotSame('', $params['module']);
+        }
+    }
+
+    public function testTheActionItPointsAtIsMappedToItsFile(): void
+    {
+        /** @var array<string, string> $action_file_map */
+        $action_file_map = [];
+        require self::ACTION_MAP;
+
+        self::assertSame(
+            ['customtheme' => 'custom/include/custom-theme/AdminPage.php'],
+            $action_file_map,
+            'SuiteCRM looks the action up in lower case',
+        );
+        self::assertSame('customtheme', strtolower(Page::ACTION));
+        self::assertFileExists(__DIR__ . '/../legacy/include/custom-theme/AdminPage.php');
+    }
+
+    public function testTheTemplateIsWhereTheViewLooksForIt(): void
+    {
+        // PageView::TEMPLATE, not loaded here (it needs SuiteCRM's SugarView).
+        $view = (string) file_get_contents(__DIR__ . '/../legacy/include/custom-theme/PageView.php');
+
+        self::assertStringContainsString("TEMPLATE = 'custom/include/custom-theme/page.tpl'", $view);
+        self::assertFileExists(__DIR__ . '/../legacy/include/custom-theme/page.tpl');
     }
 
     /**

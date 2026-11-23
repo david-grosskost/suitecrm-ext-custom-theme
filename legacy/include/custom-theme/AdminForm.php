@@ -47,12 +47,14 @@ final class AdminForm
     }
 
     /**
-     * The page, drawn with the colours it is editing so the choice can be seen
-     * while it is made.
+     * The form, drawn with the colours it is editing so the choice can be seen
+     * while it is made. A fragment, not a page: it is shown inside SuiteCRM's
+     * administration screen, so every rule is scoped to its own class and
+     * nothing of the page around it is touched.
      *
      * @param array<string, string> $values as Palette::settings returns them
      */
-    public static function page(array $values, string $action, bool $saved): string
+    public static function body(array $values, string $action, bool $saved): string
     {
         $rows = '';
         foreach (self::FIELDS as $field => $label) {
@@ -68,58 +70,49 @@ final class AdminForm
                 ROW;
         }
 
-        $notice = $saved ? '<p class="saved">Couleurs enregistrées. Rechargez le CRM pour les voir.</p>' : '';
+        $notice = $saved ? '<p class="ct-saved">Couleurs enregistrées. Rechargez le CRM pour les voir.</p>' : '';
         $primary = self::escape($values['primary'] ?? '#0284c5');
         $from = self::escape($values['header_from'] ?? '#0369a0');
         $to = self::escape($values['header_to'] ?? '#3abff8');
-        $surface = self::escape($values['surface'] ?? '#f1f5f9');
         $url = self::escape($action);
 
         return <<<HTML
-            <!DOCTYPE html>
-            <html lang="fr">
-            <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Couleurs du thème</title>
+            <div class="ct-admin">
             <style>
-            body { margin: 0; font-family: system-ui, sans-serif; background: {$surface}; color: #1d283a; }
-            header { background: linear-gradient(to right top, {$from}, {$to}); color: #fff; padding: 20px 28px; }
-            header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-            main { max-width: 560px; margin: 28px auto; background: #fff; border-radius: 10px; padding: 24px 28px; }
-            form { display: grid; grid-template-columns: 1fr auto; gap: 14px 20px; align-items: center; }
-            label { font-size: 14px; }
-            span { display: flex; align-items: center; gap: 10px; }
-            input[type=color] { width: 44px; height: 30px; padding: 0; border: 1px solid #cbd5e1; border-radius: 6px; background: none; }
-            code { font-size: 12px; color: #64748b; }
-            .actions { grid-column: 1 / -1; display: flex; gap: 12px; margin-top: 10px; }
-            button { font: inherit; padding: 9px 18px; border-radius: 8px; border: 0; cursor: pointer; }
-            .keep { background: {$primary}; color: #fff; }
-            .back { background: none; border: 1px solid #cbd5e1; color: #475569; }
-            .saved { background: #ecfdf5; color: #065f46; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+            .ct-admin { font-family: system-ui, sans-serif; color: #1d283a; max-width: 600px; }
+            .ct-admin .ct-head { background: linear-gradient(to right top, {$from}, {$to}); color: #fff; padding: 16px 24px; border-radius: 10px 10px 0 0; }
+            .ct-admin .ct-head h2 { margin: 0; font-size: 18px; font-weight: 600; color: #fff; }
+            .ct-admin .ct-card { background: #fff; border: 1px solid #e2e8f0; border-top: 0; border-radius: 0 0 10px 10px; padding: 22px 24px; }
+            .ct-admin form { display: grid; grid-template-columns: 1fr auto; gap: 14px 20px; align-items: center; margin: 0; }
+            .ct-admin label { font-size: 14px; margin: 0; font-weight: normal; }
+            .ct-admin form > span { display: flex; align-items: center; gap: 10px; }
+            .ct-admin input[type=color] { width: 44px; height: 30px; padding: 0; border: 1px solid #cbd5e1; border-radius: 6px; background: none; }
+            .ct-admin code { font-size: 12px; color: #64748b; background: none; padding: 0; }
+            .ct-admin .ct-actions { grid-column: 1 / -1; display: flex; gap: 12px; margin-top: 10px; }
+            .ct-admin button { font: inherit; padding: 9px 18px; border-radius: 8px; border: 0; cursor: pointer; }
+            .ct-admin .ct-keep { background: {$primary}; color: #fff; }
+            .ct-admin .ct-back { background: none; border: 1px solid #cbd5e1; color: #475569; }
+            .ct-admin .ct-saved { background: #ecfdf5; color: #065f46; padding: 10px 14px; border-radius: 8px; font-size: 14px; margin: 0 0 16px; }
             </style>
-            </head>
-            <body>
-            <header><h1>Couleurs du thème</h1></header>
-            <main>
+            <div class="ct-head"><h2>Couleurs du thème</h2></div>
+            <div class="ct-card">
             {$notice}
             <form method="post" action="{$url}">
-            {$rows}<div class="actions">
-              <button type="submit" class="keep">Enregistrer</button>
-              <button type="submit" name="reset" value="1" class="back">Rétablir les couleurs d'origine</button>
+            {$rows}<div class="ct-actions">
+              <button type="submit" class="ct-keep">Enregistrer</button>
+              <button type="submit" name="reset" value="1" class="ct-back">Rétablir les couleurs d'origine</button>
             </div>
             </form>
-            </main>
+            </div>
+            </div>
             <script>
-            for (const input of document.querySelectorAll('input[type=color]')) {
+            for (const input of document.querySelectorAll('.ct-admin input[type=color]')) {
               input.addEventListener('input', () => {
                 const shown = input.parentElement.querySelector('code');
                 if (shown) { shown.textContent = input.value; }
               });
             }
             </script>
-            </body>
-            </html>
             HTML;
     }
 

@@ -11,10 +11,7 @@ $entry_point_registry['customTheme'] = [
     'auth' => false,
 ];
 
-// The screen where an administrator chooses those colours. Behind the login
-// (auth true), and the page itself turns away anyone who is not an
-// administrator.
-$entry_point_registry['customThemeAdmin'] = [
-    'file' => 'custom/include/custom-theme/AdminPage.php',
-    'auth' => true,
-];
+// The screen where an administrator chooses those colours is not here: it is
+// an action of the Administration module (ActionFileMap), because a link of
+// the administration page must carry a module for SuiteCRM 8's route
+// converter.
