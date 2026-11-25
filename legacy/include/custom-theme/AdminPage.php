@@ -18,19 +18,14 @@ declare(strict_types=1);
 
 use SuiteCrmExt\CustomTheme\AdminForm;
 use SuiteCrmExt\CustomTheme\ConfigTable;
-use SuiteCrmExt\CustomTheme\LegacyTheme;
 use SuiteCrmExt\CustomTheme\Page;
 use SuiteCrmExt\CustomTheme\Palette;
-use SuiteCrmExt\CustomTheme\StaleBrowsers;
 use SuiteCrmExt\CustomTheme\PageView;
 
 require_once __DIR__ . '/Palette.php';
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/ConfigTable.php';
 require_once __DIR__ . '/AdminForm.php';
-require_once __DIR__ . '/LegacyTheme.php';
-require_once __DIR__ . '/StaleBrowsers.php';
-require_once getcwd() . '/modules/Configurator/Configurator.php';
 require_once __DIR__ . '/Page.php';
 // SuiteCRM's own view first (the current directory is public/legacy), then ours.
 require_once getcwd() . '/include/MVC/View/SugarView.php';
@@ -56,19 +51,6 @@ if (is_string($method) && strtoupper($method) === 'POST') {
     $saved = true;
 }
 
-// The legacy screens are an iframe, which the variables of the page around
-// it never reach: their stylesheet carries its own copy of the colours and
-// is written again here. Also when it is older than SuiteCRM's own, which is
-// what an upgrade leaves behind — opening this screen then repairs it.
-if ($saved || LegacyTheme::isStale()) {
-    LegacyTheme::write($settings->read());
-    // Its address would not have moved, and browsers would keep the colours
-    // they already have.
-    $configurator = new Configurator();
-    $configurator->loadConfig();
-    $configurator->config = StaleBrowsers::applyTo($configurator->config);
-    $configurator->handleOverride();
-}
 
 $view = new PageView(
     Page::label($labels, 'LBL_CT_ADMIN_TITLE'),
