@@ -57,7 +57,7 @@ final class LegacyTheme
      *   table heads its end, so that a screen holds together;
      * - the buttons follow the main colour too, being what one clicks.
      *
-     * @param array<string, string> $settings as stored by the administration
+     * @param array<string, mixed> $settings as stored by the administration
      *
      * @return array<string, string> variable name => colour
      */
@@ -86,7 +86,7 @@ final class LegacyTheme
      * var(--name, #original): a variable that never arrives then leaves the
      * screen exactly as SuiteCRM drew it.
      *
-     * @param array<string, string> $settings as stored by the administration
+     * @param array<string, mixed> $settings as stored by the administration
      *
      * @return array<string, array{variable: string, value: string}>
      */

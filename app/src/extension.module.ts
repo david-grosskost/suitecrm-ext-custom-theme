@@ -1063,7 +1063,7 @@ const dressLegacyScreens = (swaps: Record<string, Swap>): void => {
             return;
         }
 
-        const dawn = [...paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')]
+        const dawn = Array.from(paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
             .find(sheet => sheet.href.includes('/Dawn/'));
         if (dawn === undefined) {
             return;
@@ -1091,9 +1091,7 @@ const dressLegacyScreens = (swaps: Record<string, Swap>): void => {
     };
 
     const sweep = (): void => {
-        for (const frame of document.querySelectorAll<HTMLIFrameElement>('iframe')) {
-            watch(frame);
-        }
+        Array.from(document.querySelectorAll<HTMLIFrameElement>('iframe')).forEach(watch);
     };
 
     sweep();
