@@ -294,6 +294,18 @@ html[${MARK}-pinned] nav.navbar li.top-nav .dropdown-menu { left: var(--ct-rail-
    go to the module, not unfold a menu under the pointer. */
 nav.navbar li.top-nav .dropdown-menu[${MARK}-open] { display: block !important; }
 
+/* The rule above reaches every dropdown of the entry, nested ones included,
+   and only the outer one is ever marked open -- which left the second level
+   of Administration unreachable: its eight first entries are the names of
+   groups, which lead nowhere by design, and the fifty-one screens behind
+   them could not be opened at all. A group opens its own on hover, beside
+   it rather than over it, as SuiteCRM does in its horizontal bar. */
+nav.navbar li.top-nav li.dropdown-submenu:hover .dropdown-menu,
+nav.navbar li.top-nav li.dropdown-submenu:focus-within .dropdown-menu {
+  display: flex !important; flex-direction: column !important;
+  position: absolute !important; top: 0 !important; left: 100% !important;
+}
+
 /* The submenu says which module it belongs to: opened from the dots of a
    closed rail, nothing else would tell. */
 nav.navbar li.top-nav .dropdown-menu::before {
