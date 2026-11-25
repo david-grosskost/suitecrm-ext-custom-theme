@@ -208,9 +208,9 @@ final class LegacyTheme
             if (preg_match_all($pattern, $dawn, $matches) === false) {
                 continue;
             }
-            foreach ($matches[1] ?? [] as $inside) {
+            foreach ($matches[1] as $inside) {
                 foreach (array_keys(self::COLOURS) as $colour) {
-                    if (stripos((string) $inside, $colour) !== false) {
+                    if (stripos($inside, $colour) !== false) {
                         return false;
                     }
                 }
