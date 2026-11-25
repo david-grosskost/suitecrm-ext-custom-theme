@@ -35,6 +35,24 @@ function getClassicModuleTitle(string $module, array $params, bool $show_create 
 {
 }
 
+/**
+ * SuiteCRM's configuration writer (modules/Configurator/Configurator.php):
+ * reads config.php and config_override.php, and writes back the second.
+ */
+class Configurator
+{
+    /** @var array<string, mixed> */
+    public $config = [];
+
+    public function loadConfig(): void
+    {
+    }
+
+    public function handleOverride(bool $persist = true): void
+    {
+    }
+}
+
 /** SuiteCRM's Smarty, held by a view (include/SugarSmarty). */
 class Sugar_Smarty
 {
