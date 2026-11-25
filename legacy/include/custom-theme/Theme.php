@@ -43,7 +43,7 @@ final class Theme
     /**
      * @param array<string, mixed> $stored ce que l'administrateur a choisi
      *
-     * @return array{variables: array<string, string>, accents: array<string, string>, rail: array{width: int, open: int}}
+     * @return array{variables: array<string, string>, accents: array<string, string>, rail: array{width: int, open: int}, legacy: array<string, array{variable: string, value: string}>}
      */
     public static function payload(array $stored): array
     {
@@ -56,6 +56,9 @@ final class Theme
             'variables' => Palette::variables($stored),
             'accents' => $accents,
             'rail' => ['width' => self::RAIL_WIDTH, 'open' => self::RAIL_OPEN_WIDTH],
+            // Les écrans historiques sont dans une iframe : le module y pose
+            // lui-même la surcharge, à partir de cette table.
+            'legacy' => LegacyTheme::overlay($stored),
         ];
     }
 

@@ -39,6 +39,7 @@ interface Payload {
     variables: Record<string, string>;
     accents: Record<string, string>;
     rail: Rail;
+    legacy: Record<string, Swap>;
 }
 
 /**
@@ -792,6 +793,10 @@ export class ExtensionModule {
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
         applyPin(readPin());
 
+        // The screens SuiteCRM draws itself come in an iframe, which the
+        // stylesheet above does not reach: they get their own.
+        dressLegacyScreens(theme.legacy ?? {});
+
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
         // decorate it without touching SuiteCRM's components.
@@ -903,3 +908,194 @@ export class ExtensionModule {
         }
     }
 }
+
+/* ------------------------------------------------------------------ */
+
+/** What the server says a colour of SuiteCRM becomes. */
+interface Swap {
+    variable: string;
+    value: string;
+}
+
+/** The stylesheet laid over SuiteCRM's inside a legacy screen. */
+const LEGACY_STYLE_ID = 'custom-theme-legacy';
+
+/**
+ * The rules of a stylesheet that carry one of the given colours, with those
+ * colours handed over to CSS variables and everything else dropped.
+ *
+ * Dawn is seven hundred kilobytes and the client's colours touch some five
+ * hundred rules of it, so the overlay is a tenth of the size. A rule nested
+ * in an @media keeps its wrapper: taken out of it, a rule meant for one
+ * screen width would apply to every one, and wrappers left empty are dropped
+ * whole.
+ *
+ * Each colour becomes var(--name, #original), so a variable that never
+ * arrives leaves the screen exactly as SuiteCRM drew it.
+ */
+const colouredRules = (css: string, swaps: Record<string, Swap>): string => {
+    const colours = Object.keys(swaps);
+    let kept = '';
+    let at = 0;
+
+    while (at < css.length) {
+        const opens = css.indexOf('{', at);
+        if (opens === -1) {
+            break;
+        }
+        // An at-statement (@charset, @import) ends before any block.
+        const ends = css.indexOf(';', at);
+        if (ends !== -1 && ends < opens) {
+            at = ends + 1;
+            continue;
+        }
+
+        const prelude = css.slice(at, opens).trim();
+        const closes = matchingBrace(css, opens);
+        const body = css.slice(opens + 1, closes);
+        at = closes + 1;
+
+        // A block holding blocks is a wrapper: @media, @supports.
+        if (prelude.startsWith('@') && body.includes('{')) {
+            const inside = colouredRules(body, swaps);
+            if (inside !== '') {
+                kept += `${prelude}{${inside}}`;
+            }
+            continue;
+        }
+
+        const lowered = body.toLowerCase();
+        if (colours.some(colour => lowered.includes(colour))) {
+            kept += `${prelude}{${handOver(body, swaps)}}`;
+        }
+    }
+
+    return kept;
+};
+
+/** The colours of a declaration block, handed over to their variables. */
+const handOver = (body: string, swaps: Record<string, Swap>): string => {
+    let handed = body;
+    for (const [colour, swap] of Object.entries(swaps)) {
+        handed = handed.replace(
+            new RegExp(colour + '\\b', 'gi'),
+            `var(${swap.variable}, ${colour})`,
+        );
+    }
+
+    return handed;
+};
+
+/** Where the block opened at `opens` closes. */
+const matchingBrace = (css: string, opens: number): number => {
+    let depth = 0;
+    for (let at = opens; at < css.length; at++) {
+        if (css[at] === '{') {
+            depth++;
+        } else if (css[at] === '}') {
+            depth--;
+            if (depth === 0) {
+                return at;
+            }
+        }
+    }
+
+    return css.length;
+};
+
+/** The declarations that give the variables their colours. */
+const legacyVariables = (swaps: Record<string, Swap>): string => {
+    const declarations = Object.values(swaps)
+        .map(swap => `${swap.variable}:${swap.value};`)
+        .join('');
+
+    return `:root{${declarations}}`;
+};
+
+/**
+ * The overlay, built once per page from the stylesheet the legacy screen
+ * loaded. Built once: Dawn is seven hundred kilobytes, and the screen is
+ * drawn again at every change of module.
+ */
+const builtOverlay = (() => {
+    let building: Promise<string> | null = null;
+
+    return (href: string, swaps: Record<string, Swap>): Promise<string> => {
+        building ??= fetch(href, {credentials: 'same-origin'})
+            .then(answer => (answer.ok ? answer.text() : ''))
+            .then(css => (css === ''
+                ? ''
+                // Comments go first: none is wanted in the overlay, and one
+                // holding a brace would throw the reading of the blocks off.
+                : legacyVariables(swaps) + colouredRules(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps)))
+            .catch(() => '');
+
+        return building;
+    };
+})();
+
+/**
+ * Lays the client's colours over the screens SuiteCRM draws itself.
+ *
+ * Those screens come in an iframe, a document of its own: the stylesheet of
+ * the page around it does not reach them, and neither do its variables. The
+ * overlay is therefore put inside, next to Dawn, where the same selectors
+ * coming later win.
+ *
+ * It is laid again at every change of module, SuiteCRM loading a new document
+ * in the frame each time, and it is never laid twice in the same one.
+ */
+const dressLegacyScreens = (swaps: Record<string, Swap>): void => {
+    if (Object.keys(swaps).length === 0) {
+        return;
+    }
+
+    const dress = async (frame: HTMLIFrameElement): Promise<void> => {
+        let paper: Document | null = null;
+        try {
+            // A frame of another origin is none of our business, and reading
+            // it throws rather than answering.
+            paper = frame.contentDocument;
+        } catch {
+            return;
+        }
+        if (paper === null || paper.head === null || paper.getElementById(LEGACY_STYLE_ID) !== null) {
+            return;
+        }
+
+        const dawn = Array.from(paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
+            .find(sheet => sheet.href.includes('/Dawn/'));
+        if (dawn === undefined) {
+            return;
+        }
+
+        const overlay = await builtOverlay(dawn.href, swaps);
+        // Awaited, so the frame may have been drawn again meanwhile.
+        if (overlay === '' || paper.head === null || paper.getElementById(LEGACY_STYLE_ID) !== null) {
+            return;
+        }
+
+        const style = paper.createElement('style');
+        style.id = LEGACY_STYLE_ID;
+        style.textContent = overlay;
+        paper.head.appendChild(style);
+    };
+
+    const watch = (frame: HTMLIFrameElement): void => {
+        if (frame.hasAttribute(`${MARK}-watched`)) {
+            return;
+        }
+        frame.setAttribute(`${MARK}-watched`, '');
+        frame.addEventListener('load', () => void dress(frame));
+        void dress(frame);
+    };
+
+    const sweep = (): void => {
+        Array.from(document.querySelectorAll<HTMLIFrameElement>('iframe')).forEach(watch);
+    };
+
+    sweep();
+    if (document.body !== null) {
+        new MutationObserver(sweep).observe(document.body, {childList: true, subtree: true});
+    }
+};
