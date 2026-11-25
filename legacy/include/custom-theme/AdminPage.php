@@ -58,7 +58,7 @@ if (is_string($method) && strtoupper($method) === 'POST') {
 // is written again here. Also when it is older than SuiteCRM's own, which is
 // what an upgrade leaves behind — opening this screen then repairs it.
 if ($saved || LegacyTheme::isStale()) {
-    LegacyTheme::write($settings->read(), '', sugar_cached(LegacyTheme::TARGET));
+    LegacyTheme::write($settings->read());
 }
 
 $view = new PageView(

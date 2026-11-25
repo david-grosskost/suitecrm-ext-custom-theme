@@ -5,10 +5,13 @@
 //
 // - lifts the cap on how many modules the menu shows, so the rail holds them
 //   all with their submenus;
-// - builds the stylesheet of the legacy theme from SuiteCRM's own and puts
-//   the instance on it, so the screens SuiteCRM still draws — the dashboard,
-//   the quote and invoice records, Studio, the administration — take the
-//   client's colours too.
+// - lays the client's colours over the stylesheet of the legacy theme, so the
+//   screens SuiteCRM still draws — the dashboard, Studio, the administration
+//   — take them too.
+//
+// The theme itself is left alone, deliberately. On any theme other than
+// suite8, SuiteCRM 8 serves its old record views instead of the modern ones:
+// the colours are laid over suite8 rather than replacing it.
 //
 // Its message is returned, not printed (echo is refused by the scanner of
 // the Module Loader): the caller shows it.
@@ -27,15 +30,11 @@ require_once __DIR__ . '/../legacy/include/custom-theme/LegacyTheme.php';
 // SuiteCRM's own configuration writer: the current directory is public/legacy.
 require_once getcwd() . '/modules/Configurator/Configurator.php';
 
-$written = LegacyTheme::write(ConfigTable::forSuiteCrm()->read(), '', sugar_cached(LegacyTheme::TARGET));
+$written = LegacyTheme::write(ConfigTable::forSuiteCrm()->read());
 
 $configurator = new Configurator();
 $configurator->loadConfig();
 $configurator->config = Navigation::applyTo($configurator->config);
-// The instance goes on the theme this extension ships. Its icons are
-// suite8's, kept by config/services/theme-image-paths.yaml; without that
-// file, changing the theme's name would hide 1204 of them.
-$configurator->config['default_theme'] = LegacyTheme::NAME;
 $configurator->handleOverride();
 
 return 'custom-theme : tous les modules tiennent dans le menu (plafond levé). ' . $written;
