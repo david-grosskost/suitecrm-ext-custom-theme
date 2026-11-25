@@ -1,0 +1,29 @@
+# Where SuiteCRM looks for the icons of the theme in use.
+#
+# SuiteCRM imports ../extensions/*/config/services/*.yaml itself, so this file
+# is read without anything being declared elsewhere.
+#
+# Its own list substitutes the theme's name in every path, which works as long
+# as the theme in use is suite8. This extension ships a theme of its own
+# (CustomTheme, a child of suite8) that holds no image: 1204 of suite8's 1233
+# images exist nowhere else, the module icons among them, and choosing the
+# theme would make them all disappear.
+#
+# So suite8's folders are added before the ones named after the theme in use.
+# Order matters — a later path wins — so a theme that does ship an image of
+# its own still overrides suite8's, and the default folders stay the base.
+#
+# This applies to whatever theme is in use, not only to ours: on an instance
+# where another theme lacks an icon, suite8's is served rather than nothing.
+parameters:
+  themes.image_paths:
+    - 'legacy/themes/default/images'
+    - 'legacy/custom/themes/default/images'
+    - 'dist/themes/default/images'
+    - 'legacy/themes/suite8/images'
+    - 'dist/themes/suite8/images'
+    - 'dist/themes/suite8/images/modules'
+    - 'legacy/themes/<theme>/images'
+    - 'legacy/custom/themes/<theme>/images'
+    - 'dist/themes/<theme>/images'
+    - 'dist/themes/<theme>/images/modules'

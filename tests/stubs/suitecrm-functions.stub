@@ -21,6 +21,11 @@ function sugar_die(string $error_message, int $exit_code = 1): never
 {
 }
 
+/** The path of a file in SuiteCRM's cache (cache/, or whatever the instance set). */
+function sugar_cached(string $file): string
+{
+}
+
 /**
  * The title and breadcrumb of a legacy screen.
  *

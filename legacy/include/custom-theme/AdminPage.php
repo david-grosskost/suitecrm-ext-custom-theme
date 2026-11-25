@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 use SuiteCrmExt\CustomTheme\AdminForm;
 use SuiteCrmExt\CustomTheme\ConfigTable;
+use SuiteCrmExt\CustomTheme\LegacyTheme;
 use SuiteCrmExt\CustomTheme\Page;
 use SuiteCrmExt\CustomTheme\Palette;
 use SuiteCrmExt\CustomTheme\PageView;
@@ -26,6 +27,7 @@ require_once __DIR__ . '/Palette.php';
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/ConfigTable.php';
 require_once __DIR__ . '/AdminForm.php';
+require_once __DIR__ . '/LegacyTheme.php';
 require_once __DIR__ . '/Page.php';
 // SuiteCRM's own view first (the current directory is public/legacy), then ours.
 require_once getcwd() . '/include/MVC/View/SugarView.php';
@@ -49,6 +51,14 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (is_string($method) && strtoupper($method) === 'POST') {
     $settings->replace(AdminForm::fromPost($_POST));
     $saved = true;
+}
+
+// The legacy screens are an iframe, which the variables of the page around
+// it never reach: their stylesheet carries its own copy of the colours and
+// is written again here. Also when it is older than SuiteCRM's own, which is
+// what an upgrade leaves behind — opening this screen then repairs it.
+if ($saved || LegacyTheme::isStale()) {
+    LegacyTheme::write($settings->read(), '', sugar_cached(LegacyTheme::TARGET));
 }
 
 $view = new PageView(
