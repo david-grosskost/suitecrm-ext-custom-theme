@@ -21,6 +21,11 @@ function sugar_die(string $error_message, int $exit_code = 1): never
 {
 }
 
+/** The path of a file in SuiteCRM's cache (cache/, or whatever the instance set). */
+function sugar_cached(string $file): string
+{
+}
+
 /**
  * The title and breadcrumb of a legacy screen.
  *
@@ -28,6 +33,24 @@ function sugar_die(string $error_message, int $exit_code = 1): never
  */
 function getClassicModuleTitle(string $module, array $params, bool $show_create = false, string $index_url_override = '', string $create_url_override = ''): string
 {
+}
+
+/**
+ * SuiteCRM's configuration writer (modules/Configurator/Configurator.php):
+ * reads config.php and config_override.php, and writes back the second.
+ */
+class Configurator
+{
+    /** @var array<string, mixed> */
+    public $config = [];
+
+    public function loadConfig(): void
+    {
+    }
+
+    public function handleOverride(bool $persist = true): void
+    {
+    }
 }
 
 /** SuiteCRM's Smarty, held by a view (include/SugarSmarty). */
