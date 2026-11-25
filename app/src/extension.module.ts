@@ -271,28 +271,35 @@ html[${MARK}-pinned] nav.navbar [${MARK}-item] > span:not([${MARK}-icon]):not([$
   opacity: 1;
 }
 
-/* The submenu of a module opens beside the rail. Fixed rather than absolute:
-   the rail scrolls, and an absolute submenu would be cut off at its edge. The
-   code sets top and left as the pointer arrives. */
-nav.navbar .dropdown-menu.submenu {
+/* The submenu of an entry opens beside the rail. Fixed rather than absolute:
+   the rail scrolls, and a box that scrolls clips what sticks out of it, so an
+   absolute submenu would be cut off at the rail's edge. The code sets top and
+   left as the pointer arrives.
+
+   Every dropdown of an entry, not only those SuiteCRM marks "submenu":
+   Administration carries "main mobile-admin-dropdown" instead, and matching
+   the class alone left its fifty-eight entries clipped inside the rail. The
+   entry it hangs from is what makes it a submenu here, not the name SuiteCRM
+   gave it. */
+nav.navbar li.top-nav .dropdown-menu {
   display: none !important;
   position: fixed !important; left: var(--ct-rail) !important; margin: 0 !important;
   border: 1px solid rgba(15, 23, 42, .1); border-radius: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
 }
-html[${MARK}-pinned] nav.navbar .dropdown-menu.submenu { left: var(--ct-rail-open) !important; }
+html[${MARK}-pinned] nav.navbar li.top-nav .dropdown-menu { left: var(--ct-rail-open) !important; }
 /* Opened by the three dots alone, never by the row: clicking a module should
    go to the module, not unfold a menu under the pointer. */
-nav.navbar .dropdown-menu.submenu[${MARK}-open] { display: block !important; }
+nav.navbar li.top-nav .dropdown-menu[${MARK}-open] { display: block !important; }
 
 /* The submenu says which module it belongs to: opened from the dots of a
    closed rail, nothing else would tell. */
-nav.navbar .dropdown-menu.submenu::before {
+nav.navbar li.top-nav .dropdown-menu::before {
   content: attr(${MARK}-of); display: block;
   padding: 10px 16px 7px; font-size: 11px; font-weight: 700;
   letter-spacing: .04em; text-transform: uppercase; color: #94a3b8;
 }
-nav.navbar .dropdown-menu.submenu:not([${MARK}-of])::before { display: none; }
+nav.navbar li.top-nav .dropdown-menu:not([${MARK}-of])::before { display: none; }
 
 /* SuiteCRM keeps a folded copy of the menu for the modules that do not fit
    its horizontal bar. The limit is lifted (config/services), so every module
@@ -542,10 +549,18 @@ const followThePointer = (rail: HTMLElement): void => {
         }
 
         // The name of the entry under the pointer, while the rail is closed.
+        // The three dots sit inside the row, so the pointer is on both at
+        // once. The name and the submenu never show together: where the
+        // submenu is about to open, or is already open under the pointer, it
+        // says the module better than a label repeating its row.
+        const dots = over.closest(`[${MARK}-more]`);
+        const inMenu = over.closest('.dropdown-menu') !== null;
+
         const tip = tooltip();
         const row = over.closest<HTMLElement>(`[${MARK}-item]`);
         const name = row?.getAttribute(`${MARK}-name`) ?? '';
-        if (row !== null && name !== '' && !document.documentElement.hasAttribute(`${MARK}-pinned`)) {
+        if (row !== null && name !== '' && dots === null && !inMenu
+            && !document.documentElement.hasAttribute(`${MARK}-pinned`)) {
             const place = row.getBoundingClientRect();
             tip.textContent = name;
             tip.style.top = `${Math.round(place.top + place.height / 2)}px`;
@@ -557,13 +572,12 @@ const followThePointer = (rail: HTMLElement): void => {
 
         // Walking onto the submenu keeps it open: the pointer has to cross
         // the gap between the dots and it.
-        if (over.closest('.dropdown-menu.submenu')) {
+        if (inMenu) {
             window.clearTimeout(closing);
 
             return;
         }
 
-        const dots = over.closest(`[${MARK}-more]`);
         if (!dots) {
             closing = window.setTimeout(closeAll, 250);
 
@@ -573,7 +587,7 @@ const followThePointer = (rail: HTMLElement): void => {
         window.clearTimeout(closing);
         const entry = dots.closest('li.top-nav');
         const link = entry?.querySelector<HTMLElement>(`[${MARK}-item]`);
-        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu.submenu');
+        const submenu = entry?.querySelector<HTMLElement>('.dropdown-menu');
         if (!link || !submenu) {
             return;
         }
@@ -881,7 +895,7 @@ export class ExtensionModule {
                 }
             }
 
-            const submenu = link.closest('li.top-nav')?.querySelector('.dropdown-menu.submenu');
+            const submenu = link.closest('li.top-nav')?.querySelector('.dropdown-menu');
             if (submenu) {
                 submenu.setAttribute(`${MARK}-of`, label);
                 link.append(moreDots());
