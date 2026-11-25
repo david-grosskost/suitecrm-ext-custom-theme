@@ -21,12 +21,14 @@ declare(strict_types=1);
 use SuiteCrmExt\CustomTheme\ConfigTable;
 use SuiteCrmExt\CustomTheme\LegacyTheme;
 use SuiteCrmExt\CustomTheme\Navigation;
+use SuiteCrmExt\CustomTheme\StaleBrowsers;
 
 require_once __DIR__ . '/../legacy/include/custom-theme/Navigation.php';
 require_once __DIR__ . '/../legacy/include/custom-theme/Palette.php';
 require_once __DIR__ . '/../legacy/include/custom-theme/Settings.php';
 require_once __DIR__ . '/../legacy/include/custom-theme/ConfigTable.php';
 require_once __DIR__ . '/../legacy/include/custom-theme/LegacyTheme.php';
+require_once __DIR__ . '/../legacy/include/custom-theme/StaleBrowsers.php';
 // SuiteCRM's own configuration writer: the current directory is public/legacy.
 require_once getcwd() . '/modules/Configurator/Configurator.php';
 
@@ -35,6 +37,8 @@ $written = LegacyTheme::write(ConfigTable::forSuiteCrm()->read());
 $configurator = new Configurator();
 $configurator->loadConfig();
 $configurator->config = Navigation::applyTo($configurator->config);
+// The stylesheet changed under an address that would not have moved.
+$configurator->config = StaleBrowsers::applyTo($configurator->config);
 $configurator->handleOverride();
 
 return 'custom-theme : tous les modules tiennent dans le menu (plafond levé). ' . $written;
