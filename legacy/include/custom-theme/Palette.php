@@ -25,6 +25,10 @@ final class Palette
         'header_to' => '#3abff8',
         'surface' => '#f1f5f9',
         'rail' => '#ffffff',
+        // Le bleu que SuiteCRM utilise partout : boutons, liens, champs
+        // actifs. Sa valeur par défaut est celle de SuiteCRM, pour que rien
+        // ne change tant que l'administrateur ne l'a pas choisie.
+        'blue' => '#007bff',
     ];
 
     /**

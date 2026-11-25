@@ -38,7 +38,7 @@ final class ThemeTest extends TestCase
     {
         $payload = Theme::payload(['primary' => '#123456']);
 
-        self::assertSame(['variables', 'accents', 'rail', 'legacy'], array_keys($payload));
+        self::assertSame(['variables', 'accents', 'rail', 'legacy', 'angular'], array_keys($payload));
         self::assertSame(
             Theme::STANDARD_MODULES,
             array_keys($payload['accents']),
