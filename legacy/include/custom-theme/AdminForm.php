@@ -17,6 +17,7 @@ final class AdminForm
         'header_to' => 'Bandeau : fin du dégradé',
         'surface' => 'Fond des écrans',
         'rail' => 'Fond du menu',
+        'blue' => 'Bleu des boutons, liens et champs actifs',
     ];
 
     /**

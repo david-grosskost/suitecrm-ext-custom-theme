@@ -64,7 +64,12 @@ final class LegacyThemeTest extends TestCase
 
         self::assertSame('#112233', $values['--ct-accent'], 'the coral follows the main colour');
         self::assertSame('#445566', $values['--ct-panel-head'], 'the dark bars follow the start of the gradient');
-        self::assertSame('#778899', $values['--ct-table-head'], 'the table heads follow its end');
+        self::assertSame(
+            '#112233',
+            $values['--ct-table-head'],
+            'the head of a list follows the main colour: white on the end of the gradient, '
+            . 'which is meant to be light, reads at 2.10 against the 4.5 asked of ordinary text',
+        );
     }
 
     public function testSendsTheOriginalAlongAsAFallback(): void

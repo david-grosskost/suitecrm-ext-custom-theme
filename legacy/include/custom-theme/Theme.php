@@ -43,7 +43,7 @@ final class Theme
     /**
      * @param array<string, mixed> $stored ce que l'administrateur a choisi
      *
-     * @return array{variables: array<string, string>, accents: array<string, string>, rail: array{width: int, open: int}, legacy: array<string, array{variable: string, value: string}>}
+     * @return array{variables: array<string, string>, accents: array<string, string>, rail: array{width: int, open: int}, legacy: array<string, array{variable: string, value: string}>, angular: array<string, array{variable: string, value: string}>}
      */
     public static function payload(array $stored): array
     {
@@ -59,6 +59,8 @@ final class Theme
             // Les écrans historiques sont dans une iframe : le module y pose
             // lui-même la surcharge, à partir de cette table.
             'legacy' => LegacyTheme::overlay($stored),
+            // Et les écrans qu'Angular dessine ont les leurs, dans la page.
+            'angular' => AngularTheme::overlay($stored),
         ];
     }
 

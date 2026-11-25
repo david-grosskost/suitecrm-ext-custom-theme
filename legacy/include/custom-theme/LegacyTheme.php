@@ -66,11 +66,10 @@ final class LegacyTheme
         $settings = Palette::settings($settings);
         $primary = $settings['primary'] ?? Palette::DEFAULTS['primary'];
         $from = $settings['header_from'] ?? Palette::DEFAULTS['header_from'];
-        $to = $settings['header_to'] ?? Palette::DEFAULTS['header_to'];
 
         return [
             '--ct-accent' => $primary,
-            '--ct-table-head' => $to,
+            '--ct-table-head' => $primary,
             '--ct-panel-head' => $from,
             '--ct-button' => $primary,
             '--ct-surface' => $from,
@@ -92,15 +91,6 @@ final class LegacyTheme
      */
     public static function overlay(array $settings): array
     {
-        $values = self::values($settings);
-        $overlay = [];
-        foreach (self::COLOURS as $colour => $variable) {
-            $overlay[$colour] = [
-                'variable' => $variable,
-                'value' => $values[$variable] ?? $colour,
-            ];
-        }
-
-        return $overlay;
+        return Overlay::of(self::COLOURS, self::values($settings));
     }
 }

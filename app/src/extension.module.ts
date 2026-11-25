@@ -40,6 +40,7 @@ interface Payload {
     accents: Record<string, string>;
     rail: Rail;
     legacy: Record<string, Swap>;
+    angular: Record<string, Swap>;
 }
 
 /**
@@ -796,6 +797,7 @@ export class ExtensionModule {
         // The screens SuiteCRM draws itself come in an iframe, which the
         // stylesheet above does not reach: they get their own.
         dressLegacyScreens(theme.legacy ?? {});
+        void dressTheApplication(theme.angular ?? {});
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
@@ -1003,8 +1005,8 @@ const matchingBrace = (css: string, opens: number): number => {
     return css.length;
 };
 
-/** The declarations that give the variables their colours. */
-const legacyVariables = (swaps: Record<string, Swap>): string => {
+/** The declarations that give the variables their colours, for either layer. */
+const overlayVariables = (swaps: Record<string, Swap>): string => {
     const declarations = Object.values(swaps)
         .map(swap => `${swap.variable}:${swap.value};`)
         .join('');
@@ -1018,19 +1020,25 @@ const legacyVariables = (swaps: Record<string, Swap>): string => {
  * drawn again at every change of module.
  */
 const builtOverlay = (() => {
-    let building: Promise<string> | null = null;
+    const building = new Map<string, Promise<string>>();
 
     return (href: string, swaps: Record<string, Swap>): Promise<string> => {
-        building ??= fetch(href, {credentials: 'same-origin'})
+        const already = building.get(href);
+        if (already !== undefined) {
+            return already;
+        }
+
+        const build = fetch(href, {credentials: 'same-origin'})
             .then(answer => (answer.ok ? answer.text() : ''))
             .then(css => (css === ''
                 ? ''
                 // Comments go first: none is wanted in the overlay, and one
                 // holding a brace would throw the reading of the blocks off.
-                : legacyVariables(swaps) + colouredRules(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps)))
+                : overlayVariables(swaps) + colouredRules(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps)))
             .catch(() => '');
+        building.set(href, build);
 
-        return building;
+        return build;
     };
 })();
 
@@ -1097,5 +1105,51 @@ const dressLegacyScreens = (swaps: Record<string, Swap>): void => {
     sweep();
     if (document.body !== null) {
         new MutationObserver(sweep).observe(document.body, {childList: true, subtree: true});
+    }
+};
+
+const APP_STYLE_ID = 'custom-theme-app';
+
+/**
+ * Lays the client's colours over the screens SuiteCRM's own application
+ * draws: the lists, the record views, the administration.
+ *
+ * Same method as for the screens it draws itself, one floor up: its
+ * stylesheet is read, the rules carrying one of its colours are kept, and
+ * the copy is put back in the page. Measured on 8.10.2, everything that
+ * paints is in that one stylesheet -- four hundred colours in it, and the
+ * only other sheet merely declares Bootstrap's variables, which almost
+ * nothing reads.
+ *
+ * The copy goes before the module's own rules, so those keep the last word,
+ * and after SuiteCRM's, so the same selectors coming later win. It is laid
+ * once: the application changes its screens without changing its stylesheet.
+ */
+const dressTheApplication = async (swaps: Record<string, Swap>): Promise<void> => {
+    if (Object.keys(swaps).length === 0 || document.getElementById(APP_STYLE_ID) !== null) {
+        return;
+    }
+
+    const sheet = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
+        .find(link => /\/styles\.[0-9a-f]+\.css$/.test(new URL(link.href).pathname));
+    if (sheet === undefined) {
+        return;
+    }
+
+    const overlay = await builtOverlay(sheet.href, swaps);
+    // Awaited, so another call may have laid it meanwhile.
+    if (overlay === '' || document.getElementById(APP_STYLE_ID) !== null) {
+        return;
+    }
+
+    const style = document.createElement('style');
+    style.id = APP_STYLE_ID;
+    style.textContent = overlay;
+
+    const ours = document.getElementById(STYLE_ID);
+    if (ours === null) {
+        document.head.appendChild(style);
+    } else {
+        document.head.insertBefore(style, ours);
     }
 };
