@@ -1,5 +1,9 @@
 import {NgModule} from '@angular/core';
 import {CommonModule} from '@angular/common';
+import {
+    darkBlock, darkVariables, fetchScheme, isDark, markDocument, nextScheme, onSystemChange,
+    readScheme, saveScheme, Scheme, SCHEME_ATTRIBUTE, SCHEME_ICONS, SCHEME_WORDS, Tint, tintOf,
+} from './dark';
 
 // custom-theme: loaded by SuiteCRM 8 when the interface starts (module
 // federation, declared by config/extension.php). It changes the frame around
@@ -41,7 +45,67 @@ interface Payload {
     rail: Rail;
     legacy: Record<string, Swap>;
     angular: Record<string, Swap>;
+    dark?: Dark;
 }
+
+/** The dark mode's values of the same variables, from the server. */
+interface Dark {
+    variables: Record<string, string>;
+    legacy: Record<string, string>;
+    angular: Record<string, string>;
+}
+
+/* ------------------------------------------------------ the dark mode ---- */
+
+/** The choice shown now, and what applies it to the page and its frames. */
+let shown: Scheme = readScheme();
+let variables: {light: Record<string, string>; dark: Record<string, string>} = {light: {}, dark: {}};
+
+const SCHEME_BUTTON = `[${MARK}-scheme]`;
+
+/**
+ * Shows a choice: marks the page and every frame, and sets the colours the
+ * Administration chose for that mode. Those are written on the root element
+ * itself, which no stylesheet can outrank: the dark ones replace the light.
+ */
+const showScheme = (scheme: Scheme): void => {
+    shown = scheme;
+    markDocument(document, scheme);
+    const chosen = isDark(scheme) ? variables.dark : variables.light;
+    for (const [name, value] of Object.entries(chosen)) {
+        document.documentElement.style.setProperty(name, value);
+    }
+    for (const frame of Array.from(document.querySelectorAll<HTMLIFrameElement>('iframe'))) {
+        try {
+            if (frame.contentDocument !== null) {
+                markDocument(frame.contentDocument, scheme);
+            }
+        } catch {
+            // A frame of another origin is none of our business.
+        }
+    }
+
+    const button = document.querySelector<HTMLElement>(SCHEME_BUTTON);
+    if (button !== null) {
+        button.innerHTML = SCHEME_ICONS[scheme];
+        button.title = SCHEME_WORDS[scheme];
+        button.setAttribute('aria-label', SCHEME_WORDS[scheme]);
+    }
+};
+
+/** The button of the top bar that goes round light, dark, as the computer. */
+const schemeButton = (): HTMLElement => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute(`${MARK}-scheme`, '');
+    button.addEventListener('click', () => {
+        const next = nextScheme(shown);
+        showScheme(next);
+        void saveScheme(next);
+    });
+
+    return button;
+};
 
 /**
  * Paints the icons from the stylesheet rather than by hand.
@@ -90,6 +154,29 @@ const paintIcons = async (accents: Record<string, string>): Promise<string[]> =>
 const bareScreen = (): string => `
 nav.navbar, scrm-footer-ui, footer { display: none !important; }
 body { background: var(--st-surface, #f1f5f9); }
+`;
+
+/**
+ * The dark mode of what this module draws itself (the rail, the bar, the
+ * button that switches), and that button in either mode. SuiteCRM's own
+ * screens get theirs from the overlay: see darkBlock.
+ */
+const DARK = `html[${SCHEME_ATTRIBUTE}="dark"]`;
+const darkLayout = (): string => `
+[${MARK}-scheme] {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; margin: 0 6px; padding: 0;
+  border: 0; border-radius: 8px; background: none; color: #fff; cursor: pointer;
+}
+[${MARK}-scheme]:hover, [${MARK}-scheme]:focus-visible { background: rgba(255, 255, 255, .16); }
+${DARK} body { background: var(--st-surface, #151c23); }
+${DARK} nav.navbar { border-right-color: rgba(255, 255, 255, .08) !important; }
+${DARK} [${MARK}-pin] { color: #94a3b8; border-bottom-color: rgba(255, 255, 255, .08); }
+${DARK} [${MARK}-pin]:hover, ${DARK} nav.navbar [${MARK}-item]:hover { background: rgba(255, 255, 255, .06); }
+${DARK} nav.navbar [${MARK}-item] { color: #cbd5e1 !important; }
+${DARK} nav.navbar li.top-nav .dropdown-menu { border-color: rgba(255, 255, 255, .1); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+${DARK} [${MARK}-bar] .dropdown-menu, ${DARK} [${MARK}-bar] .dropdown-menu a { color: #e2e8f0 !important; }
+${DARK} [${MARK}-bar] .dropdown-menu svg, ${DARK} [${MARK}-bar] .dropdown-menu svg * { fill: #94a3b8; }
 `;
 
 /** The stylesheet of the theme, created once and rewritten when needed. */
@@ -477,6 +564,7 @@ const BAR_PARTS = [
     'scrm-search-bar',
     `[${MARK}-gap]`,
     'div.action-group.navbar-action-group',
+    SCHEME_BUTTON,
     'div.global-links',
 ];
 
@@ -504,7 +592,9 @@ const topBar = (): HTMLElement => {
     const gap = document.createElement('span');
     gap.setAttribute(`${MARK}-gap`, '');
     bar.append(gap);
+    bar.append(schemeButton());
     document.body.prepend(bar);
+    showScheme(shown);
 
     return bar;
 };
@@ -792,24 +882,34 @@ export class ExtensionModule {
         }
         const theme = await answer.json() as Payload;
 
-        for (const [name, value] of Object.entries(theme.variables ?? {})) {
-            document.documentElement.style.setProperty(name, value);
-        }
+        // The light colours, then the user's choice: the one remembered in
+        // this browser at once, the one kept in their preferences as soon as
+        // it is known (none on the login screen).
+        variables = {light: theme.variables ?? {}, dark: theme.dark?.variables ?? theme.variables ?? {}};
+        showScheme(shown);
+        onSystemChange(() => showScheme(shown));
+        void fetchScheme().then(kept => {
+            if (kept !== null && kept !== shown) {
+                showScheme(kept);
+                void saveScheme(kept);
+            }
+        });
+        const tint = tintOf(theme.dark?.variables?.['--st-surface']);
         // The colours are set at once, so the login screen is themed too,
         // and that screen is stripped of what it does not need. The rail
         // waits for the menu: see menuDrawn.
-        styleSheet().textContent = bareScreen();
+        styleSheet().textContent = bareScreen() + darkLayout();
         const painted = await paintIcons(theme.accents ?? {});
         // The layout goes on whether or not the menu came: see menuDrawn.
         await menuDrawn();
 
-        styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240});
+        styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240}) + darkLayout();
         applyPin(readPin());
 
         // The screens SuiteCRM draws itself come in an iframe, which the
         // stylesheet above does not reach: they get their own.
-        dressLegacyScreens(theme.legacy ?? {});
-        void dressTheApplication(theme.angular ?? {});
+        dressLegacyScreens(theme.legacy ?? {}, theme.dark?.legacy ?? {}, tint);
+        void dressTheApplication(theme.angular ?? {}, theme.dark?.angular ?? {}, tint);
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
@@ -947,7 +1047,7 @@ const LEGACY_STYLE_ID = 'custom-theme-legacy';
  * Each colour becomes var(--name, #original), so a variable that never
  * arrives leaves the screen exactly as SuiteCRM drew it.
  */
-const colouredRules = (css: string, swaps: Record<string, Swap>): string => {
+const colouredRules = (css: string, swaps: Record<string, Swap>, tint: Tint, found: Map<string, string>): string => {
     const colours = Object.keys(swaps);
     let kept = '';
     let at = 0;
@@ -971,16 +1071,21 @@ const colouredRules = (css: string, swaps: Record<string, Swap>): string => {
 
         // A block holding blocks is a wrapper: @media, @supports.
         if (prelude.startsWith('@') && body.includes('{')) {
-            const inside = colouredRules(body, swaps);
+            const inside = colouredRules(body, swaps, tint, found);
             if (inside !== '') {
                 kept += `${prelude}{${inside}}`;
             }
             continue;
         }
 
+        // The client's colours first, then the greys of the dark mode in
+        // what is left: a rule is kept when either changed it.
         const lowered = body.toLowerCase();
-        if (colours.some(colour => lowered.includes(colour))) {
-            kept += `${prelude}{${handOver(body, swaps)}}`;
+        const coloured = colours.some(colour => lowered.includes(colour));
+        const handed = coloured ? handOver(body, swaps) : body;
+        const dark = prelude.startsWith('@') ? null : darkBlock(handed, tint, found);
+        if (coloured || dark !== null) {
+            kept += `${prelude}{${dark ?? handed}}`;
         }
     }
 
@@ -1034,7 +1139,7 @@ const overlayVariables = (swaps: Record<string, Swap>): string => {
 const builtOverlay = (() => {
     const building = new Map<string, Promise<string>>();
 
-    return (href: string, swaps: Record<string, Swap>): Promise<string> => {
+    return (href: string, swaps: Record<string, Swap>, dark: Record<string, string>, tint: Tint): Promise<string> => {
         const already = building.get(href);
         if (already !== undefined) {
             return already;
@@ -1046,13 +1151,24 @@ const builtOverlay = (() => {
                 ? ''
                 // Comments go first: none is wanted in the overlay, and one
                 // holding a brace would throw the reading of the blocks off.
-                : overlayVariables(swaps) + colouredRules(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps)))
+                : withVariables(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps, dark, tint)))
             .catch(() => '');
         building.set(href, build);
 
         return build;
     };
 })();
+
+/**
+ * The overlay of one stylesheet: the light variables, the dark ones (shown
+ * only when the root says dark), and the rules that read them.
+ */
+const withVariables = (css: string, swaps: Record<string, Swap>, dark: Record<string, string>, tint: Tint): string => {
+    const found = new Map<string, string>();
+    const rules = colouredRules(css, swaps, tint, found);
+
+    return overlayVariables(swaps) + darkVariables(found, dark) + rules;
+};
 
 /**
  * Lays the client's colours over the screens SuiteCRM draws itself.
@@ -1065,10 +1181,7 @@ const builtOverlay = (() => {
  * It is laid again at every change of module, SuiteCRM loading a new document
  * in the frame each time, and it is never laid twice in the same one.
  */
-const dressLegacyScreens = (swaps: Record<string, Swap>): void => {
-    if (Object.keys(swaps).length === 0) {
-        return;
-    }
+const dressLegacyScreens = (swaps: Record<string, Swap>, darkValues: Record<string, string>, tint: Tint): void => {
 
     const dress = async (frame: HTMLIFrameElement): Promise<void> => {
         let paper: Document | null = null;
@@ -1089,7 +1202,8 @@ const dressLegacyScreens = (swaps: Record<string, Swap>): void => {
             return;
         }
 
-        const overlay = await builtOverlay(dawn.href, swaps);
+        markDocument(paper, shown);
+        const overlay = await builtOverlay(dawn.href, swaps, darkValues, tint);
         // Awaited, so the frame may have been drawn again meanwhile.
         if (overlay === '' || paper.head === null || paper.getElementById(LEGACY_STYLE_ID) !== null) {
             return;
@@ -1137,8 +1251,8 @@ const APP_STYLE_ID = 'custom-theme-app';
  * and after SuiteCRM's, so the same selectors coming later win. It is laid
  * once: the application changes its screens without changing its stylesheet.
  */
-const dressTheApplication = async (swaps: Record<string, Swap>): Promise<void> => {
-    if (Object.keys(swaps).length === 0 || document.getElementById(APP_STYLE_ID) !== null) {
+const dressTheApplication = async (swaps: Record<string, Swap>, darkValues: Record<string, string>, tint: Tint): Promise<void> => {
+    if (document.getElementById(APP_STYLE_ID) !== null) {
         return;
     }
 
@@ -1148,7 +1262,7 @@ const dressTheApplication = async (swaps: Record<string, Swap>): Promise<void> =
         return;
     }
 
-    const overlay = await builtOverlay(sheet.href, swaps);
+    const overlay = await builtOverlay(sheet.href, swaps, darkValues, tint);
     // Awaited, so another call may have laid it meanwhile.
     if (overlay === '' || document.getElementById(APP_STYLE_ID) !== null) {
         return;
