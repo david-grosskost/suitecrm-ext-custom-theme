@@ -21,6 +21,17 @@ final class AdminForm
     ];
 
     /**
+     * The dark mode's colours: the same fields, stored with the "dark_"
+     * prefix. Shown worked out from the light ones until chosen.
+     */
+    public const string DARK = DarkPalette::PREFIX;
+
+    /** What a dark field's hidden companions are called. */
+    public const string SHOWN = 'shown_';
+
+    public const string KEPT = 'kept_';
+
+    /**
      * The colours to store, read from what was posted. Anything that is not a
      * known field or not a colour is dropped rather than corrected: a value
      * this refuses falls back to the default, which is always readable.
@@ -44,6 +55,28 @@ final class AdminForm
             }
         }
 
+        // "Recalculate" forgets the dark choices: they are worked out again.
+        if (isset($post['recalculate'])) {
+            return $values;
+        }
+
+        foreach (array_keys(self::FIELDS) as $field) {
+            $name = self::DARK . $field;
+            $value = $post[$name] ?? null;
+            if (!Palette::isColour($value)) {
+                continue;
+            }
+            /** @var string $value */
+            $value = strtolower($value);
+            // A colour is a choice when it was one already, or when it is not
+            // the one the form showed: a shade worked out and left untouched
+            // is not stored, so it keeps following the light palette.
+            $shown = $post[self::SHOWN . $name] ?? null;
+            if (isset($post[self::KEPT . $name]) || !is_string($shown) || strtolower($shown) !== $value) {
+                $values[$name] = $value;
+            }
+        }
+
         return $values;
     }
 
@@ -54,21 +87,25 @@ final class AdminForm
      * nothing of the page around it is touched.
      *
      * @param array<string, string> $values as Palette::settings returns them
+     * @param array<string, string> $dark   as DarkPalette::settings returns them
+     * @param list<string>          $chosen the dark fields the administrator chose
      */
-    public static function body(array $values, string $action, bool $saved): string
+    public static function body(array $values, string $action, bool $saved, array $dark = [], array $chosen = []): string
     {
         $rows = '';
         foreach (self::FIELDS as $field => $label) {
-            $value = self::escape($values[$field] ?? '#000000');
-            $name = self::escape($field);
-            $rows .= <<<ROW
-                <label for="{$name}">{$label}</label>
-                <span>
-                  <input type="color" id="{$name}" name="{$name}" value="{$value}">
-                  <code>{$value}</code>
-                </span>
+            $rows .= self::row($field, $label, $values[$field] ?? '#000000', '');
+        }
 
-                ROW;
+        $darkRows = '';
+        foreach (self::FIELDS as $field => $label) {
+            $value = $dark[$field] ?? DarkPalette::settings([])[$field];
+            $name = self::escape(self::DARK . $field);
+            $extra = '<input type="hidden" name="' . self::SHOWN . $name . '" value="' . self::escape($value) . '">';
+            if (in_array($field, $chosen, true)) {
+                $extra .= '<input type="hidden" name="' . self::KEPT . $name . '" value="1">';
+            }
+            $darkRows .= self::row(self::DARK . $field, $label, $value, $extra);
         }
 
         $notice = $saved ? '<p class="ct-saved">Couleurs enregistrées. Rechargez le CRM pour les voir.</p>' : '';
@@ -93,14 +130,19 @@ final class AdminForm
             .ct-admin button { font: inherit; padding: 9px 18px; border-radius: 8px; border: 0; cursor: pointer; }
             .ct-admin .ct-keep { background: {$primary}; color: #fff; }
             .ct-admin .ct-back { background: none; border: 1px solid #cbd5e1; color: #475569; }
+            .ct-admin h3 { grid-column: 1 / -1; margin: 14px 0 0; font-size: 16px; font-weight: 600; }
+            .ct-admin .ct-hint { grid-column: 1 / -1; margin: 0; font-size: 13px; color: #64748b; }
             .ct-admin .ct-saved { background: #ecfdf5; color: #065f46; padding: 10px 14px; border-radius: 8px; font-size: 14px; margin: 0 0 16px; }
             </style>
             <div class="ct-head"><h2>Couleurs du thème</h2></div>
             <div class="ct-card">
             {$notice}
             <form method="post" action="{$url}">
-            {$rows}<div class="ct-actions">
+            {$rows}<h3>Mode sombre</h3>
+            <p class="ct-hint">Calculées à partir des couleurs ci-dessus tant que vous ne les changez pas.</p>
+            {$darkRows}<div class="ct-actions">
               <button type="submit" class="ct-keep">Enregistrer</button>
+              <button type="submit" name="recalculate" value="1" class="ct-back">Recalculer le mode sombre</button>
               <button type="submit" name="reset" value="1" class="ct-back">Rétablir les couleurs d'origine</button>
             </div>
             </form>
@@ -115,6 +157,22 @@ final class AdminForm
             }
             </script>
             HTML;
+    }
+
+    /** One line of the form: its label, its colour, and what it shows of it. */
+    private static function row(string $field, string $label, string $value, string $extra): string
+    {
+        $value = self::escape($value);
+        $name = self::escape($field);
+
+        return <<<ROW
+            <label for="{$name}">{$label}</label>
+            <span>
+              <input type="color" id="{$name}" name="{$name}" value="{$value}">
+              <code>{$value}</code>{$extra}
+            </span>
+
+            ROW;
     }
 
     private static function escape(string $value): string

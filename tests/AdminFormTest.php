@@ -7,6 +7,7 @@ namespace SuiteCrmExt\CustomTheme\Tests;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use SuiteCrmExt\CustomTheme\AdminForm;
+use SuiteCrmExt\CustomTheme\DarkPalette;
 use SuiteCrmExt\CustomTheme\Page;
 use SuiteCrmExt\CustomTheme\Palette;
 
@@ -73,5 +74,42 @@ final class AdminFormTest extends TestCase
 
         self::assertStringContainsString('enregistrées', AdminForm::body($values, 'x', true));
         self::assertStringNotContainsString('enregistrées', AdminForm::body($values, 'x', false));
+    }
+
+    public function testStoresADarkColourOnlyWhenItWasChanged(): void
+    {
+        $values = AdminForm::fromPost([
+            'dark_surface' => '#000000', 'shown_dark_surface' => '#151c23',
+            'dark_rail' => '#262626', 'shown_dark_rail' => '#262626',
+        ]);
+
+        self::assertSame(['dark_surface' => '#000000'], $values, 'une teinte calculée laissée telle quelle suit le mode clair');
+    }
+
+    public function testKeepsADarkColourChosenBefore(): void
+    {
+        $values = AdminForm::fromPost(['dark_rail' => '#262626', 'shown_dark_rail' => '#262626', 'kept_dark_rail' => '1']);
+
+        self::assertSame(['dark_rail' => '#262626'], $values);
+    }
+
+    public function testRecalculatingForgetsTheDarkChoicesOnly(): void
+    {
+        $values = AdminForm::fromPost(['recalculate' => '1', 'primary' => '#112233', 'dark_surface' => '#000000', 'kept_dark_surface' => '1']);
+
+        self::assertSame(['primary' => '#112233'], $values);
+    }
+
+    public function testTheFormShowsTheDarkModeWithItsComputedShades(): void
+    {
+        $page = AdminForm::body(Palette::settings([]), Page::URL, false, DarkPalette::settings([]), ['rail']);
+
+        self::assertStringContainsString('Mode sombre', $page);
+        foreach (array_keys(AdminForm::FIELDS) as $field) {
+            self::assertStringContainsString("name=\"dark_{$field}\"", $page);
+            self::assertStringContainsString("name=\"shown_dark_{$field}\"", $page);
+        }
+        self::assertStringContainsString('name="kept_dark_rail"', $page);
+        self::assertStringNotContainsString('name="kept_dark_surface"', $page);
     }
 }

@@ -15,6 +15,8 @@ use SuiteCrmExt\CustomTheme\Theme;
 require_once __DIR__ . '/Settings.php';
 require_once __DIR__ . '/ConfigTable.php';
 require_once __DIR__ . '/Palette.php';
+require_once __DIR__ . '/Colour.php';
+require_once __DIR__ . '/DarkPalette.php';
 require_once __DIR__ . '/Overlay.php';
 require_once __DIR__ . '/LegacyTheme.php';
 require_once __DIR__ . '/AngularTheme.php';

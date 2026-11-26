@@ -6,6 +6,7 @@ namespace SuiteCrmExt\CustomTheme\Tests;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use SuiteCrmExt\CustomTheme\DarkPalette;
 use SuiteCrmExt\CustomTheme\Palette;
 use SuiteCrmExt\CustomTheme\Theme;
 
@@ -38,7 +39,7 @@ final class ThemeTest extends TestCase
     {
         $payload = Theme::payload(['primary' => '#123456']);
 
-        self::assertSame(['variables', 'accents', 'rail', 'legacy', 'angular'], array_keys($payload));
+        self::assertSame(['variables', 'accents', 'rail', 'legacy', 'angular', 'dark'], array_keys($payload));
         self::assertSame(
             Theme::STANDARD_MODULES,
             array_keys($payload['accents']),
@@ -69,5 +70,19 @@ final class ThemeTest extends TestCase
         self::assertIsArray($decoded);
         self::assertIsArray($decoded['variables']);
         self::assertSame('#0a0b0c', $decoded['variables']['--primary']);
+    }
+
+    public function testGivesTheDarkModeTheSameVariablesAsTheLightOne(): void
+    {
+        $payload = Theme::payload([]);
+
+        self::assertSame(array_keys($payload['variables']), array_keys($payload['dark']['variables']));
+        self::assertSame(DarkPalette::settings([])['surface'], $payload['dark']['variables']['--st-surface']);
+        foreach ($payload['angular'] as $swap) {
+            self::assertArrayHasKey($swap['variable'], $payload['dark']['angular']);
+        }
+        foreach ($payload['legacy'] as $swap) {
+            self::assertArrayHasKey($swap['variable'], $payload['dark']['legacy']);
+        }
     }
 }
