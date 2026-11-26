@@ -11,6 +11,13 @@ $entry_point_registry['customTheme'] = [
     'auth' => false,
 ];
 
+// The light or dark choice of the logged-in user, kept in their preferences:
+// for logged-in users only (auth true), it says nothing of anyone else.
+$entry_point_registry['customThemeScheme'] = [
+    'file' => 'custom/include/custom-theme/ServeScheme.php',
+    'auth' => true,
+];
+
 // The screen where an administrator chooses those colours is not here: it is
 // an action of the Administration module (ActionFileMap), because a link of
 // the administration page must carry a module for SuiteCRM 8's route
