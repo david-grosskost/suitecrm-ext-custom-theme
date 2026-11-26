@@ -63,10 +63,9 @@ final class AdminForm
         foreach (array_keys(self::FIELDS) as $field) {
             $name = self::DARK . $field;
             $value = $post[$name] ?? null;
-            if (!Palette::isColour($value)) {
+            if (!is_string($value) || !Palette::isColour($value)) {
                 continue;
             }
-            /** @var string $value */
             $value = strtolower($value);
             // A colour is a choice when it was one already, or when it is not
             // the one the form showed: a shade worked out and left untouched
