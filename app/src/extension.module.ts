@@ -481,6 +481,11 @@ nav.navbar scrm-menu-items-list { display: none !important; }
      here. */
   transform: none !important; margin: 0 !important;
 }
+/* The controls stand against the right edge of the bar: their menus open
+   leftwards from it, or the user's menu runs off the screen. */
+[${MARK}-bar] .action-group .dropdown-menu, [${MARK}-bar] .global-links .dropdown-menu {
+  left: auto !important; right: 0 !important;
+}
 [${MARK}-bar] .dropdown-menu > *, [${MARK}-bar] .dropdown-menu ul, [${MARK}-bar] .dropdown-menu li {
   width: 100% !important; height: auto !important; flex: 0 0 auto !important;
 }
