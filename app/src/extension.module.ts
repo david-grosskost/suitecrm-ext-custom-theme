@@ -1268,19 +1268,9 @@ const YUI_DARK = `:root[${SCHEME_ATTRIBUTE}="dark"] .yui-dt-hd { background-colo
  * handed over: the client's colours are Dawn's business.
  */
 const darkenTheRest = async (paper: Document, dawn: string, darkValues: Record<string, string>, tint: Tint): Promise<void> => {
-    const sheets = Array.from(paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
-        .filter(sheet => sheet.href !== dawn && sheet.href.startsWith(window.location.origin));
-    const overlays = await Promise.all(sheets.map(sheet => builtOverlay(sheet.href, {}, darkValues, tint)));
-    const written = overlays.filter(overlay => overlay.includes('--ct-dk-')).join('') + YUI_DARK;
-    if (written !== '' && paper.head !== null && paper.getElementById(`${LEGACY_STYLE_ID}-rest`) === null) {
-        const style = paper.createElement('style');
-        style.id = `${LEGACY_STYLE_ID}-rest`;
-        style.textContent = written;
-        paper.head.appendChild(style);
-    }
-
-    // A block of style written in the page comes after the head: its dark
-    // version goes right after it, or the block would win.
+    // First the blocks of style written in the page, which need no download:
+    // each comes after the head, so its dark version goes right after it, or
+    // the block would win.
     for (const block of Array.from(paper.querySelectorAll<HTMLStyleElement>('style:not([id^="custom-theme"])'))) {
         if (block.hasAttribute(`${MARK}-darkened`)) {
             continue;
@@ -1293,6 +1283,17 @@ const darkenTheRest = async (paper: Document, dawn: string, darkValues: Record<s
             after.textContent = dark;
             block.after(after);
         }
+    }
+
+    const sheets = Array.from(paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
+        .filter(sheet => sheet.href !== dawn && sheet.href.startsWith(window.location.origin));
+    const overlays = await Promise.all(sheets.map(sheet => builtOverlay(sheet.href, {}, darkValues, tint)));
+    const written = overlays.filter(overlay => overlay.includes('--ct-dk-')).join('') + YUI_DARK;
+    if (written !== '' && paper.head !== null && paper.getElementById(`${LEGACY_STYLE_ID}-rest`) === null) {
+        const style = paper.createElement('style');
+        style.id = `${LEGACY_STYLE_ID}-rest`;
+        style.textContent = written;
+        paper.head.appendChild(style);
     }
 };
 

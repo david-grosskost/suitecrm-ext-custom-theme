@@ -23,6 +23,15 @@ typiquement créé dans Studio, reçoit une pastille portant son initiale.
 l'icône), déduite de son nom : la même d'une instance et d'une version à l'autre. Le reste
 de l'interface suit les couleurs du client, y compris l'écran de connexion.
 
+**Le mode sombre.** Un bouton du bandeau du haut fait le tour de trois choix : **clair**
+(soleil), **sombre** (lune) et **comme l'ordinateur** (demi-cercle, le choix par défaut, qui
+suit le réglage clair ou sombre du système). Le choix est gardé dans les préférences de
+l'utilisateur : il le retrouve sur un autre ordinateur, à la connexion suivante. Tout passe
+au sombre : le cadre, les écrans de SuiteCRM 8, les écrans historiques (tableau de bord,
+Studio, Chargeur de module), et les pages d'administration des autres extensions. Les
+couleurs qui ont un sens (rouge d'une erreur, vert d'un succès, couleurs du client) gardent
+leur valeur ; le texte blanc des boutons reste blanc.
+
 ## Réglages
 
 **Administration → Thème du client → Couleurs du thème**, réservé aux administrateurs :
@@ -36,7 +45,14 @@ de l'interface suit les couleurs du client, y compris l'écran de connexion.
 | Fond du menu | `#ffffff` | le rail |
 | Couleur des boutons, liens et champs actifs | `#007bff` | le bleu de SuiteCRM (boutons, liens, champs actifs) |
 
-**Rétablir les couleurs d'origine** remet ces valeurs. Après un enregistrement, recharger le
+**Mode sombre** : les mêmes six couleurs, pour le mode sombre. Tant qu'elles ne sont pas
+changées, elles sont **calculées à partir des couleurs ci-dessus** : fond et menu très sombres
+dans la teinte du fond clair, bandeau assombri pour que le texte blanc y reste lisible,
+couleur principale et bleu dans la teinte du client, éclaircis seulement s'ils ne se
+détachent pas assez du fond. Une couleur changée est gardée telle quelle ; **Recalculer le mode
+sombre** oublie ces choix et revient au calcul.
+
+**Rétablir les couleurs d'origine** remet toutes ces valeurs. Après un enregistrement, recharger le
 CRM pour voir les nouvelles couleurs.
 
 La couleur des boutons, liens et champs actifs garde par défaut le bleu de SuiteCRM : elle
@@ -54,3 +70,6 @@ Aucune : les couleurs par défaut s'appliquent tant qu'aucune n'a été choisie.
   de SuiteCRM 8. Elle se règle dans **Thème du client**.
 - Les couleurs des modules ne se choisissent pas une par une : elles sont déduites de leur
   nom.
+- Mode sombre : une image (logo, photo) pensée pour un fond blanc reste telle quelle ; les
+  graphiques dessinés par du code (tableaux de bord) gardent leurs couleurs. Au chargement
+  d'un écran historique, il peut s'afficher un instant en clair avant de passer au sombre.

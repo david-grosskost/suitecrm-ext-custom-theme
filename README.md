@@ -3,7 +3,8 @@
 Le menu horizontal de SuiteCRM devient un **rail vertical d'icônes** à gauche, et toute
 l'interface prend **les couleurs du client** : l'en-tête, le menu, les écrans de SuiteCRM 8
 (listes, fiches, administration) comme ses écrans historiques (tableau de bord, Studio).
-Les couleurs se choisissent dans l'administration.
+Les couleurs se choisissent dans l'administration. Un **mode sombre**, aux couleurs du client
+lui aussi, se choisit par chaque utilisateur depuis le bandeau du haut.
 
 **Les écrans de SuiteCRM ne sont pas modifiés** : listes, fiches, Studio et administration
 gardent leurs comportements et leurs raccourcis. L'extension ne change que le cadre et les

@@ -7,7 +7,10 @@
 | `app/` → `public/` | le module Angular et sa version compilée (`make front@build`) |
 | `config/extension.php` | déclare le module à SuiteCRM 8 |
 | `config/services/navigation-tab-limits.yaml` | lève le plafond de modules affichés, côté SuiteCRM 8 |
+| `app/src/dark.ts` | le mode sombre côté navigateur : la règle des gris, le choix de l'utilisateur, le bouton |
 | `legacy/include/custom-theme/Palette.php` | les couleurs : celles choisies, leurs valeurs par défaut, l'accent de chaque module |
+| `legacy/include/custom-theme/DarkPalette.php`, `Colour.php` | les couleurs du mode sombre : celles choisies, ou calculées depuis le mode clair ; luminance et contraste |
+| `legacy/include/custom-theme/Scheme.php`, `ServeScheme.php` | le choix clair, sombre ou « comme l'ordinateur » de l'utilisateur, dans ses préférences |
 | `legacy/include/custom-theme/Theme.php` | ce que l'interface reçoit : variables CSS, accents, recolorations |
 | `legacy/include/custom-theme/AngularTheme.php` | les couleurs des écrans de SuiteCRM 8 et ce qui les remplace |
 | `legacy/include/custom-theme/LegacyTheme.php` | les couleurs des écrans historiques et ce qui les remplace |
@@ -58,16 +61,51 @@ suivent les montées de version de SuiteCRM. Chaque variable garde la couleur d'
 secours (`var(--nom, #origine)`) : une variable qui n'arrive pas laisse l'écran tel que
 SuiteCRM l'a dessiné.
 
+## Le mode sombre
+
+**Les couleurs de l'administration** : le point d'entrée sert aussi leurs valeurs sombres
+(`dark` : les mêmes variables, valeurs de `DarkPalette`). Le module les pose sur la racine
+de la page quand l'affichage est sombre, à la place des claires.
+
+**Les couleurs de SuiteCRM** : quelque quatre cents gris, écrits en dur dans ses feuilles de
+style. Le même passage qui pose les couleurs du client remet chaque gris à une variable
+nommée d'après son **rôle** et sa couleur (`--ct-dk-bg-ffffff`, `--ct-dk-text-212529`,
+`--ct-dk-border-dee2e6`), avec la couleur d'origine en secours. Ces variables ne sont définies
+que sous `:root[data-ct-scheme="dark"]` : en clair, rien ne change. Le rôle compte, car une
+même couleur en joue plusieurs : le blanc est le fond des pages et le texte des boutons.
+
+| Rôle | En sombre |
+|---|---|
+| fond clair | sombre, le plus clair devenant le plus sombre (le blanc devient la page) |
+| bordure claire | un cran au-dessus des fonds, pour rester visible ; noire translucide → blanche translucide |
+| texte foncé | clair, le plus foncé devenant le plus clair ; un texte clair est posé sur une couleur et reste |
+| texte aux couleurs du client | la même couleur, éclaircie jusqu'à un contraste de 4,5 sur la page |
+| couleur vive | inchangée, sauf un texte très foncé (éclairci) ou un fond très pâle (assombri) |
+
+Les gris prennent la teinte du fond sombre du client. Dans les écrans historiques, la même
+règle s'applique aux feuilles annexes (tableaux YUI, arborescences) et aux blocs de style
+écrits dans la page, comme ceux des pages d'administration des extensions ; une règle à part
+couvre ce que YUI écrit directement sur ses tableaux.
+
+**Le choix de l'utilisateur** : `legacy/index.php?entryPoint=customThemeScheme`, réservé aux
+utilisateurs connectés, le lit (GET) ou le change (POST, champ `scheme`) dans ses préférences
+(catégorie `custom_theme`). Le navigateur le garde aussi, pour l'afficher dès le premier
+instant et sur l'écran de connexion, où personne n'est encore connu.
+
 ## La page d'administration
 
 **Administration → Thème du client → Couleurs du thème** est une action du module
 Administration (`index.php?module=Administration&action=CustomTheme`), derrière la
-connexion, qui renvoie un 403 à qui n'est pas administrateur. Elle n'écrit que six codes
-couleur, dans la table `config`, catégorie de l'extension.
+connexion, qui renvoie un 403 à qui n'est pas administrateur. Elle n'écrit que des codes
+couleur, dans la table `config`, catégorie de l'extension : les six du mode clair, et ceux du
+mode sombre que l'administrateur a changés (préfixe `dark_`). Une couleur sombre laissée telle
+qu'elle a été calculée n'est pas enregistrée : elle continue de suivre le mode clair.
 
 ## Données en base
 
 - Les couleurs choisies : table `config`, catégorie de l'extension.
+- Le choix clair ou sombre de chaque utilisateur : ses préférences (`user_preferences`,
+  catégorie `custom_theme`).
 - Le plafond de modules du menu historique (`default_max_tabs`), relevé à l'installation.
 
 ## Installation et désinstallation
