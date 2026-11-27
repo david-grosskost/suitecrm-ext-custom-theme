@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/david-grosskost/suitecrm-ext-custom-theme/compare/v0.3.0...v0.3.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* readable rail submenus and a themed login button ([#16](https://github.com/david-grosskost/suitecrm-ext-custom-theme/issues/16)) ([15413ab](https://github.com/david-grosskost/suitecrm-ext-custom-theme/commit/15413ab00ca786e7c9464d427bae60693cc54a66))
+
 ## [0.3.0](https://github.com/david-grosskost/suitecrm-ext-custom-theme/compare/v0.2.0...v0.3.0) (2026-11-27)
 
 
