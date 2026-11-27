@@ -175,6 +175,7 @@ ${DARK} [${MARK}-pin] { color: #94a3b8; border-bottom-color: rgba(255, 255, 255,
 ${DARK} [${MARK}-pin]:hover, ${DARK} nav.navbar [${MARK}-item]:hover { background: rgba(255, 255, 255, .06); }
 ${DARK} nav.navbar [${MARK}-item], ${DARK} nav.navbar li.top-nav .dropdown-menu a { color: #cbd5e1 !important; }
 ${DARK} nav.navbar li.top-nav .dropdown-menu a:hover, ${DARK} nav.navbar li.top-nav .dropdown-menu a:focus-visible { background: rgba(255, 255, 255, .06); color: #f1f5f9 !important; }
+${DARK} nav.navbar li.top-nav .dropdown-menu a svg, ${DARK} nav.navbar li.top-nav .dropdown-menu a svg * { fill: #94a3b8 !important; }
 ${DARK} nav.navbar li.top-nav .dropdown-menu { border-color: rgba(255, 255, 255, .1); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
 ${DARK} [${MARK}-bar] .dropdown-menu, ${DARK} [${MARK}-bar] .dropdown-menu a { color: #e2e8f0 !important; }
 ${DARK} [${MARK}-bar] .dropdown-menu svg, ${DARK} [${MARK}-bar] .dropdown-menu svg * { fill: #94a3b8; }
@@ -410,6 +411,10 @@ nav.navbar li.top-nav .dropdown-menu a {
 nav.navbar li.top-nav .dropdown-menu a:hover, nav.navbar li.top-nav .dropdown-menu a:focus-visible {
   background: rgba(15, 23, 42, .06); color: #0f172a !important;
 }
+/* Their icons are white too, and the recently viewed entry has the dark
+   band of SuiteCRM's bar. */
+nav.navbar li.top-nav .dropdown-menu a svg, nav.navbar li.top-nav .dropdown-menu a svg * { fill: #64748b !important; }
+nav.navbar li.top-nav .dropdown-menu .submenu { background: transparent !important; }
 
 /* SuiteCRM keeps a folded copy of the menu for the modules that do not fit
    its horizontal bar. The limit is lifted (config/services), so every module
