@@ -18,6 +18,9 @@ qui ne correspond pas à `app/`.
    SuiteCRM qu'elle remplace dans `AngularTheme` ou `LegacyTheme`.
 3. Compléter les tests et le tableau des réglages de [Utilisation](utilisation.md).
 
+Ajouter aussi la couleur au mode sombre : `DarkPalette::derive` calcule sa valeur sombre à
+partir de la claire (les tests vérifient les contrastes sur plusieurs palettes de clients).
+
 Choisir des couleurs que le client peut régler sans rendre un écran illisible : vérifier le
 contraste du texte blanc posé dessus (4,5 au moins pour un texte ordinaire).
 

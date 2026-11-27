@@ -43,7 +43,7 @@ final class Theme
     /**
      * @param array<string, mixed> $stored ce que l'administrateur a choisi
      *
-     * @return array{variables: array<string, string>, accents: array<string, string>, rail: array{width: int, open: int}, legacy: array<string, array{variable: string, value: string}>, angular: array<string, array{variable: string, value: string}>}
+     * @return array{variables: array<string, string>, accents: array<string, string>, rail: array{width: int, open: int}, legacy: array<string, array{variable: string, value: string}>, angular: array<string, array{variable: string, value: string}>, dark: array{variables: array<string, string>, legacy: array<string, string>, angular: array<string, string>}}
      */
     public static function payload(array $stored): array
     {
@@ -61,6 +61,25 @@ final class Theme
             'legacy' => LegacyTheme::overlay($stored),
             // Et les écrans qu'Angular dessine ont les leurs, dans la page.
             'angular' => AngularTheme::overlay($stored),
+            // The dark mode: the same variables, worth the dark palette. The
+            // page sets them only when the user's choice is dark.
+            'dark' => self::dark($stored),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $stored
+     *
+     * @return array{variables: array<string, string>, legacy: array<string, string>, angular: array<string, string>}
+     */
+    public static function dark(array $stored): array
+    {
+        $dark = DarkPalette::settings($stored);
+
+        return [
+            'variables' => Palette::variables($dark),
+            'legacy' => LegacyTheme::values($dark),
+            'angular' => AngularTheme::values($dark),
         ];
     }
 
