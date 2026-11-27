@@ -1151,7 +1151,7 @@ const builtOverlay = (() => {
                 ? ''
                 // Comments go first: none is wanted in the overlay, and one
                 // holding a brace would throw the reading of the blocks off.
-                : withVariables(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps, dark, tint)))
+                : withVariables(css.replace(/\/\*[\s\S]*?\*\//g, ''), swaps, dark, tint, href)))
             .catch(() => '');
         building.set(href, build);
 
@@ -1160,12 +1160,29 @@ const builtOverlay = (() => {
 })();
 
 /**
+ * The stylesheet's relative url() made absolute: the overlay is laid in the
+ * page, whose address is not the stylesheet's, and an image or a font kept
+ * in a rewritten rule would otherwise be looked for in the wrong place.
+ */
+const absoluteUrls = (css: string, base: string): string =>
+    css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (written: string, quote: string, address: string) => {
+        if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(address)) {
+            return written;
+        }
+        try {
+            return `url(${quote}${new URL(address, base).href}${quote})`;
+        } catch {
+            return written;
+        }
+    });
+
+/**
  * The overlay of one stylesheet: the light variables, the dark ones (shown
  * only when the root says dark), and the rules that read them.
  */
-const withVariables = (css: string, swaps: Record<string, Swap>, dark: Record<string, string>, tint: Tint): string => {
+const withVariables = (css: string, swaps: Record<string, Swap>, dark: Record<string, string>, tint: Tint, base?: string): string => {
     const found = new Map<string, string>();
-    const rules = colouredRules(css, swaps, tint, found);
+    const rules = colouredRules(base === undefined ? css : absoluteUrls(css, base), swaps, tint, found);
 
     return overlayVariables(swaps) + darkVariables(found, dark) + rules;
 };
@@ -1213,6 +1230,8 @@ const dressLegacyScreens = (swaps: Record<string, Swap>, darkValues: Record<stri
         style.id = LEGACY_STYLE_ID;
         style.textContent = overlay;
         paper.head.appendChild(style);
+
+        void darkenTheRest(paper, dawn.href, darkValues, tint);
     };
 
     const watch = (frame: HTMLIFrameElement): void => {
@@ -1231,6 +1250,41 @@ const dressLegacyScreens = (swaps: Record<string, Swap>, darkValues: Record<stri
     sweep();
     if (document.body !== null) {
         new MutationObserver(sweep).observe(document.body, {childList: true, subtree: true});
+    }
+};
+
+/**
+ * The dark mode of a legacy screen's other stylesheets: those of its widgets
+ * (tables, trees, calendars), and the blocks of style a page writes itself,
+ * such as the administration pages of the extensions. Only their greys are
+ * handed over: the client's colours are Dawn's business.
+ */
+const darkenTheRest = async (paper: Document, dawn: string, darkValues: Record<string, string>, tint: Tint): Promise<void> => {
+    const sheets = Array.from(paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
+        .filter(sheet => sheet.href !== dawn && sheet.href.startsWith(window.location.origin));
+    const overlays = await Promise.all(sheets.map(sheet => builtOverlay(sheet.href, {}, darkValues, tint)));
+    const written = overlays.filter(overlay => overlay.includes('--ct-dk-')).join('');
+    if (written !== '' && paper.head !== null && paper.getElementById(`${LEGACY_STYLE_ID}-rest`) === null) {
+        const style = paper.createElement('style');
+        style.id = `${LEGACY_STYLE_ID}-rest`;
+        style.textContent = written;
+        paper.head.appendChild(style);
+    }
+
+    // A block of style written in the page comes after the head: its dark
+    // version goes right after it, or the block would win.
+    for (const block of Array.from(paper.querySelectorAll<HTMLStyleElement>('style:not([id^="custom-theme"])'))) {
+        if (block.hasAttribute(`${MARK}-darkened`)) {
+            continue;
+        }
+        block.setAttribute(`${MARK}-darkened`, '');
+        const dark = withVariables((block.textContent ?? '').replace(/\/\*[\s\S]*?\*\//g, ''), {}, darkValues, tint);
+        if (dark.includes('--ct-dk-')) {
+            const after = paper.createElement('style');
+            after.id = 'custom-theme-dark-block';
+            after.textContent = dark;
+            block.after(after);
+        }
     }
 };
 
