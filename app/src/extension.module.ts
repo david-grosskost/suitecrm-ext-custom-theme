@@ -1254,6 +1254,14 @@ const dressLegacyScreens = (swaps: Record<string, Swap>, darkValues: Record<stri
 };
 
 /**
+ * What YUI writes on its tables itself, in the element's own style rather
+ * than in a stylesheet: the grey band of a scrolling table's header, and
+ * the border that stands for its scroll bar.
+ */
+const YUI_DARK = `:root[${SCHEME_ATTRIBUTE}="dark"] .yui-dt-hd { background-color: transparent !important; }
+:root[${SCHEME_ATTRIBUTE}="dark"] .yui-dt-hd th { border-right-color: transparent !important; }`;
+
+/**
  * The dark mode of a legacy screen's other stylesheets: those of its widgets
  * (tables, trees, calendars), and the blocks of style a page writes itself,
  * such as the administration pages of the extensions. Only their greys are
@@ -1263,7 +1271,7 @@ const darkenTheRest = async (paper: Document, dawn: string, darkValues: Record<s
     const sheets = Array.from(paper.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]'))
         .filter(sheet => sheet.href !== dawn && sheet.href.startsWith(window.location.origin));
     const overlays = await Promise.all(sheets.map(sheet => builtOverlay(sheet.href, {}, darkValues, tint)));
-    const written = overlays.filter(overlay => overlay.includes('--ct-dk-')).join('');
+    const written = overlays.filter(overlay => overlay.includes('--ct-dk-')).join('') + YUI_DARK;
     if (written !== '' && paper.head !== null && paper.getElementById(`${LEGACY_STYLE_ID}-rest`) === null) {
         const style = paper.createElement('style');
         style.id = `${LEGACY_STYLE_ID}-rest`;

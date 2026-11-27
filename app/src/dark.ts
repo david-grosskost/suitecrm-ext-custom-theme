@@ -208,8 +208,12 @@ export const darkShade = (part: Part, colour: string, tint: Tint): string | null
         return null;
     }
     const [red, green, blue, alpha] = channels;
-    const {s, l} = toHsl(red, green, blue);
-    if (s >= GREY) {
+    const {h, s, l} = toHsl(red, green, blue);
+    // A colour keeps its value, except a very dark text (unreadable on the
+    // dark page, whatever its hue) and a very light background (a tinted
+    // panel, as bright as white): those turn like the greys, hue kept.
+    const coloured = s >= GREY;
+    if (coloured && !(part === 'text' && l < 0.35) && !(part === 'bg' && l > 0.9)) {
         return null;
     }
 
@@ -221,7 +225,7 @@ export const darkShade = (part: Part, colour: string, tint: Tint): string | null
     }
 
     const shade = (lightness: number): string => {
-        const solid = hex({h: tint.h, s: tint.s, l: lightness});
+        const solid = hex(coloured ? {h, s: Math.min(s, 0.6), l: lightness} : {h: tint.h, s: tint.s, l: lightness});
 
         return alpha < 1 ? `${solid}${Math.round(alpha * 255).toString(16).padStart(2, '0')}` : solid;
     };
