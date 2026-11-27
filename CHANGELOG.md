@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/david-grosskost/suitecrm-ext-custom-theme/compare/v0.2.0...v0.3.0) (2026-11-27)
+
+
+### Features
+
+* add a dark mode chosen by each user ([#14](https://github.com/david-grosskost/suitecrm-ext-custom-theme/issues/14)) ([d177c3e](https://github.com/david-grosskost/suitecrm-ext-custom-theme/commit/d177c3ea5bc92afd864597421e53d3829d258e1a))
+
 ## [0.2.0](https://github.com/david-grosskost/suitecrm-ext-custom-theme/compare/v0.1.0...v0.2.0) (2026-11-25)
 
 
