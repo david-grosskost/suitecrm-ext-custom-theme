@@ -894,7 +894,7 @@ export class ExtensionModule {
                 void saveScheme(kept);
             }
         });
-        const tint = tintOf(theme.dark?.variables?.['--st-surface']);
+        const tint = tintOf(theme.dark?.variables?.['--st-surface'], {...theme.dark?.angular, ...theme.dark?.legacy});
         // The colours are set at once, so the login screen is themed too,
         // and that screen is stripped of what it does not need. The rail
         // waits for the menu: see menuDrawn.

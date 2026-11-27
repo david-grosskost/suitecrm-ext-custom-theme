@@ -41,10 +41,15 @@ interface Hsl {
     l: number;
 }
 
-/** What the dark greys are tinted with: the hue of the client's dark page. */
+/**
+ * What the dark greys are tinted with (the hue of the client's dark page),
+ * the page itself, and the dark values of the client's colours.
+ */
 export interface Tint {
     h: number;
     s: number;
+    surface?: string;
+    palette?: Record<string, string>;
 }
 
 /* ---------------------------------------------------------- colours ---- */
@@ -130,15 +135,58 @@ export const hex = ({h, s, l}: Hsl): string => {
 };
 
 /** The tint of the dark greys, from the client's dark page. */
-export const tintOf = (surface: string | undefined): Tint => {
+export const tintOf = (surface: string | undefined, palette: Record<string, string> = {}): Tint => {
     const channels = surface === undefined ? null : parse(surface);
     if (channels === null) {
-        return {h: 210, s: 0.1};
+        return {h: 210, s: 0.1, palette};
     }
     const {h, s} = toHsl(channels[0], channels[1], channels[2]);
 
-    return {h, s: Math.min(s, 0.15)};
+    return {h, s: Math.min(s, 0.15), surface, palette};
 };
+
+/** Relative luminance (WCAG 2) of a colour, 0 when it cannot be read. */
+const luminance = (colour: string): number => {
+    const channels = parse(colour);
+    if (channels === null) {
+        return 0;
+    }
+    const linear = channels.slice(0, 3).map(channel => {
+        const value = channel / 255;
+
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+};
+
+export const contrast = (first: string, second: string): number => {
+    const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+
+    return (lighter + 0.05) / (darker + 0.05);
+};
+
+/**
+ * A colour made lighter, hue kept, until it reads against the page as text
+ * does (4.5): the client's colours, darkened for the dark header, are too
+ * dark to be written with on the dark page.
+ */
+export const readableOn = (colour: string, page: string): string => {
+    const channels = parse(colour);
+    if (channels === null) {
+        return colour;
+    }
+    const hsl = toHsl(channels[0], channels[1], channels[2]);
+    let shade = hex(hsl);
+    for (let lightness = hsl.l; contrast(shade, page) < 4.5 && lightness < 0.9; lightness += 0.02) {
+        shade = hex({...hsl, l: lightness + 0.02});
+    }
+
+    return shade;
+};
+
+/** The client's colours a text is written with: var(--ct-…, fallback). */
+const PALETTE_TEXT = /var\((--ct-[a-z][a-z-]*), *([^()]+|[^()]*\([^()]*\)[^()]*)\)/g;
 
 /**
  * The dark shade of one of SuiteCRM's greys in the given part, or null when
@@ -229,8 +277,11 @@ export const handOverGreys = (
     found: Map<string, string>,
 ): string | null => {
     const part = partOf(property);
-    if (part === null || value.includes('var(--ct-')) {
+    if (part === null || value.includes('var(--ct-dk-')) {
         return null;
+    }
+    if (value.includes('var(--ct-')) {
+        return part === 'text' ? readablePalette(value, tint, found) : null;
     }
 
     let changed = false;
@@ -244,6 +295,33 @@ export const handOverGreys = (
         }
         const variable = variableOf(part, written);
         found.set(variable, dark);
+        changed = true;
+
+        return `var(${variable}, ${written})`;
+    });
+
+    return changed ? handed : null;
+};
+
+/**
+ * A text written in one of the client's colours: in the dark, the same
+ * colour made light enough to read on the page, through a variable of its
+ * own so that the light mode keeps the colour as it is.
+ */
+const readablePalette = (value: string, tint: Tint, found: Map<string, string>): string | null => {
+    const palette = tint.palette ?? {};
+    const page = tint.surface;
+    if (page === undefined) {
+        return null;
+    }
+    let changed = false;
+    const handed = value.replace(PALETTE_TEXT, (written: string, name: string) => {
+        const dark = palette[name];
+        if (dark === undefined) {
+            return written;
+        }
+        const variable = `--ct-dk-text${name.slice('--ct'.length)}`;
+        found.set(variable, readableOn(dark, page));
         changed = true;
 
         return `var(${variable}, ${written})`;
