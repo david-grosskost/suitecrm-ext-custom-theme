@@ -34,6 +34,8 @@ final class AngularTheme
         '#8d74cc' => '--ct-ng-complementary',  // the active tab, the second accents
         '#ef8177' => '--ct-ng-accent',         // the coral, in its two shades
         '#f08377' => '--ct-ng-accent',
+        '#eb6657' => '--ct-ng-accent',         // its darker shades: the login button,
+        '#ee8776' => '--ct-ng-accent',         // the borders of the coral buttons
         '#93a4b3' => '--ct-ng-light',          // the light grey of the list heads
         '#76858f' => '--ct-ng-grey',           // the grey of the surfaces
         '#007bff' => '--ct-ng-blue',           // Bootstrap's, left alone by default
