@@ -888,20 +888,28 @@ export class ExtensionModule {
         variables = {light: theme.variables ?? {}, dark: theme.dark?.variables ?? theme.variables ?? {}};
         showScheme(shown);
         onSystemChange(() => showScheme(shown));
-        void fetchScheme().then(kept => {
-            if (kept !== null && kept !== shown) {
-                showScheme(kept);
-                void saveScheme(kept);
-            }
-        });
+        const keptChoice = (): void => {
+            void fetchScheme().then(kept => {
+                if (kept !== null && kept !== shown) {
+                    showScheme(kept);
+                    void saveScheme(kept);
+                }
+            });
+        };
+        keptChoice();
         const tint = tintOf(theme.dark?.variables?.['--st-surface'], {...theme.dark?.angular, ...theme.dark?.legacy});
         // The colours are set at once, so the login screen is themed too,
         // and that screen is stripped of what it does not need. The rail
         // waits for the menu: see menuDrawn.
         styleSheet().textContent = bareScreen() + darkLayout();
+        // SuiteCRM's own screens at once too: the login screen is one, and
+        // it never draws the menu the rest waits for.
+        void dressTheApplication(theme.angular ?? {}, theme.dark?.angular ?? {}, tint);
         const painted = await paintIcons(theme.accents ?? {});
         // The layout goes on whether or not the menu came: see menuDrawn.
         await menuDrawn();
+        // Someone just logged in: their choice is known now.
+        keptChoice();
 
         styleSheet().textContent = layout(theme.rail ?? {width: 56, open: 240}) + darkLayout();
         applyPin(readPin());
@@ -909,7 +917,6 @@ export class ExtensionModule {
         // The screens SuiteCRM draws itself come in an iframe, which the
         // stylesheet above does not reach: they get their own.
         dressLegacyScreens(theme.legacy ?? {}, theme.dark?.legacy ?? {}, tint);
-        void dressTheApplication(theme.angular ?? {}, theme.dark?.angular ?? {}, tint);
 
         // The navbar is drawn by Angular after this module is loaded, and
         // redrawn whenever the menu changes: watching is the only way to
