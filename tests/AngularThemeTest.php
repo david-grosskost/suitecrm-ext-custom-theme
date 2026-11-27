@@ -36,6 +36,7 @@ final class AngularThemeTest extends TestCase
         // The two differ by one point of red and nobody would tell them
         // apart, so handing them different colours would only show as a seam.
         self::assertSame(AngularTheme::COLOURS['#ef8177'], AngularTheme::COLOURS['#f08377']);
+        self::assertSame(AngularTheme::COLOURS['#ef8177'], AngularTheme::COLOURS['#eb6657'], 'the login button');
     }
 
     public function testLeavesTheMeaningfulColoursAlone(): void
